@@ -9,6 +9,7 @@ export const WURLITZER_META: InstrumentPresetMeta = {
   id: 'wurlitzer',
   label: 'Wurlitzer EP',
   subtitle: 'Warm vintage reed',
+  category: 'keys',
   defaultReleaseSec: 0.24,
   rollStepSec: 0.01,
 };

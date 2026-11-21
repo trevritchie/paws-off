@@ -482,8 +482,8 @@ describe('perceptual volume calibration', () => {
 });
 
 describe('meditative instruments & ambience', () => {
-  it('exposes all 18 instrument presets (Velvet Pad default, 10 real-sample acoustics, and 8 pure Web Audio synths)', () => {
-    expect(INSTRUMENT_PRESETS).toHaveLength(18);
+  it('exposes all 30 instrument presets (Velvet Pad default, 16 real-sample acoustics, and 14 pure Web Audio synths)', () => {
+    expect(INSTRUMENT_PRESETS).toHaveLength(30);
     const ids = INSTRUMENT_PRESETS.map((p) => p.id);
     expect(ids).toEqual([
       'velvet-pad',
@@ -504,8 +504,21 @@ describe('meditative instruments & ambience', () => {
       'juno-poly',
       'jazz-organ',
       'glass-celesta',
+      'marimba',
+      'woodwind-choir',
+      'steel-guitar',
+      'pizzicato-strings',
+      'warm-sax',
+      'warm-trombone',
+      'lofi-tape',
+      'harpsichord',
+      'kalimba',
+      'analog-brass',
+      'retro-8bit',
+      'shimmer-pad',
     ]);
     for (const preset of INSTRUMENT_PRESETS) {
+      expect(['keys', 'strings', 'winds', 'synths']).toContain(preset.category);
       expect(preset.defaultReleaseSec).toBeGreaterThan(0);
       expect(preset.rollStepSec).toBeGreaterThanOrEqual(0);
     }
@@ -515,6 +528,8 @@ describe('meditative instruments & ambience', () => {
     const maxAllowedShift: Record<string, number> = {
       'french-horn': 7,
       'chamber-cello': 4,
+      marimba: 3,
+      'woodwind-choir': 3,
     };
     for (const [id, cfg] of Object.entries(ACOUSTIC_PACK_CONFIGS)) {
       const limit = maxAllowedShift[id] ?? 2;
@@ -1336,6 +1351,18 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
       'juno-poly',
       'jazz-organ',
       'glass-celesta',
+      'marimba',
+      'woodwind-choir',
+      'steel-guitar',
+      'pizzicato-strings',
+      'warm-sax',
+      'warm-trombone',
+      'lofi-tape',
+      'harpsichord',
+      'kalimba',
+      'analog-brass',
+      'retro-8bit',
+      'shimmer-pad',
     ] as const) {
       expect(sanitizeSettings({ timbre: id }).timbre).toBe(id);
       expect(getRecommendedMelodyTimbre(id)).toBeDefined();
@@ -1457,6 +1484,12 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
         'juno-poly',
         'jazz-organ',
         'glass-celesta',
+        'lofi-tape',
+        'harpsichord',
+        'kalimba',
+        'analog-brass',
+        'retro-8bit',
+        'shimmer-pad',
       ] as const) {
         const oscBefore = createdOscs.length;
         const handle = synth.playChord(

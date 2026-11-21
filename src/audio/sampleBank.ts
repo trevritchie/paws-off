@@ -7,7 +7,13 @@ export type AcousticSampleTimbreId =
   | 'nylon-guitar'
   | 'clean-guitar'
   | 'harmonium'
-  | 'pipe-organ';
+  | 'pipe-organ'
+  | 'marimba'
+  | 'woodwind-choir'
+  | 'steel-guitar'
+  | 'pizzicato-strings'
+  | 'warm-sax'
+  | 'warm-trombone';
 
 export interface AcousticPackConfig {
   id: AcousticSampleTimbreId;
@@ -15,7 +21,7 @@ export interface AcousticPackConfig {
   sustained: boolean;
 }
 
-export const ACOUSTIC_SAMPLES_VERSION = '2';
+export const ACOUSTIC_SAMPLES_VERSION = '3';
 
 const STANDARD_10_ANCHORS: readonly number[] = [
   40, 44, 48, 52, 56, 60, 64, 68, 72, 76,
@@ -67,6 +73,36 @@ export const ACOUSTIC_PACK_CONFIGS: Record<
   },
   'pipe-organ': {
     id: 'pipe-organ',
+    anchors: STANDARD_10_ANCHORS,
+    sustained: true,
+  },
+  marimba: {
+    id: 'marimba',
+    anchors: [36, 43, 47, 53, 60, 67, 71, 77],
+    sustained: false,
+  },
+  'woodwind-choir': {
+    id: 'woodwind-choir',
+    anchors: [43, 45, 48, 50, 53, 58, 62, 65, 70, 72, 76],
+    sustained: true,
+  },
+  'steel-guitar': {
+    id: 'steel-guitar',
+    anchors: [40, 43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 74],
+    sustained: false,
+  },
+  'pizzicato-strings': {
+    id: 'pizzicato-strings',
+    anchors: STANDARD_10_ANCHORS,
+    sustained: false,
+  },
+  'warm-sax': {
+    id: 'warm-sax',
+    anchors: STANDARD_10_ANCHORS,
+    sustained: true,
+  },
+  'warm-trombone': {
+    id: 'warm-trombone',
     anchors: STANDARD_10_ANCHORS,
     sustained: true,
   },

@@ -3,8 +3,8 @@
 Acoustic Instrument & SATB Choir Sample Processing Pipeline for Paws Off.
 
 Documents and reproduces the three offline audio-processing pipelines used to
-build all 10 sampled instrument packs (20 FluidR3_GM SATB choir MP3s in
-public/choir/ and 103 multi-sample acoustic MP3s across 9 instrument packs in
+build all 16 sampled instrument packs (20 FluidR3_GM SATB choir MP3s in
+public/choir/ and 164 multi-sample acoustic MP3s across 15 instrument packs in
 public/samples/):
 
 1. choir           : FluidR3_GM Ooh/Ahh -> 0.65s crossfade splice (4.8s), register-tilted -18 LUFS
@@ -133,6 +133,60 @@ REMOTE_ACOUSTIC_PACKS: dict[str, dict[str, Any]] = {
             for midi, name in STANDARD_10_MIDI_NAMES
         ],
     },
+    "marimba": {
+        "pipeline": "remote-acoustic",
+        "kind": "struck",
+        "af": "highpass=f=60,lowpass=f=6200",
+        "max_dur": 2.2,
+        "target_lufs": -18.0,
+        "measure_window_sec": 0.7,
+        "peak_ceil": 0.90,
+        "anchors": [
+            (36, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_C2_loud_01.wav"),
+            (43, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_G2_loud_01.wav"),
+            (47, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_B2_loud_01.wav"),
+            (53, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_F3_loud_01.wav"),
+            (60, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_C4_loud_01.wav"),
+            (67, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_G4_loud_01.wav"),
+            (71, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_B4_loud_01.wav"),
+            (77, "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Percussion/Marimba/Marimba_hit_Outrigger_F5_loud_01.wav"),
+        ],
+    },
+    "pizzicato-strings": {
+        "pipeline": "remote-acoustic",
+        "kind": "struck",
+        "af": "highpass=f=60,lowpass=f=6800",
+        "max_dur": 1.6,
+        "target_lufs": -18.5,
+        "measure_window_sec": 0.55,
+        "peak_ceil": 0.88,
+        "anchors": [
+            (midi, f"https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/pizzicato_strings-mp3/{name}.mp3")
+            for midi, name in STANDARD_10_MIDI_NAMES
+        ],
+    },
+    "warm-sax": {
+        "pipeline": "remote-acoustic",
+        "kind": "sustained",
+        "af": "highpass=f=55,equalizer=f=2400:t=q:w=1.2:g=-2.0,lowpass=f=5200",
+        "target_lufs": -18.8,
+        "peak_ceil": 0.88,
+        "anchors": [
+            (midi, f"https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/tenor_sax-mp3/{name}.mp3")
+            for midi, name in STANDARD_10_MIDI_NAMES
+        ],
+    },
+    "warm-trombone": {
+        "pipeline": "remote-acoustic",
+        "kind": "sustained",
+        "af": "highpass=f=50,equalizer=f=300:t=q:w=1.0:g=1.2,lowpass=f=4400",
+        "target_lufs": -18.8,
+        "peak_ceil": 0.88,
+        "anchors": [
+            (midi, f"https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/trombone-mp3/{name}.mp3")
+            for midi, name in STANDARD_10_MIDI_NAMES
+        ],
+    },
 }
 
 MOVEMENTAL_PACKS: dict[str, dict[str, Any]] = {
@@ -242,6 +296,50 @@ MOVEMENTAL_PACKS: dict[str, dict[str, Any]] = {
             (68, "Gs4.mp3"),
             (71, "B4.mp3"),
             (76, "E5.mp3"),
+        ],
+    },
+    "woodwind-choir": {
+        "pipeline": "movemental",
+        "src_dir": "",
+        "sustained": True,
+        "target_lufs": -19.0,
+        "peak_ceil": 0.64,
+        "af": "highpass=f=55,lowpass=f=6400",
+        "anchors": [
+            (43, "bassoon/G2.mp3"),
+            (45, "bassoon/A2.mp3"),
+            (48, "bassoon/C3.mp3"),
+            (50, "clarinet/D3.mp3"),
+            (53, "clarinet/F3.mp3"),
+            (58, "clarinet/As3.mp3"),
+            (62, "clarinet/D4.mp3"),
+            (65, "clarinet/F4.mp3"),
+            (70, "clarinet/As4.mp3"),
+            (72, "flute/C5.mp3"),
+            (76, "flute/E5.mp3"),
+        ],
+    },
+    "steel-guitar": {
+        "pipeline": "movemental",
+        "src_dir": "guitar-acoustic",
+        "sustained": False,
+        "max_dur": 3.5,
+        "target_lufs": -19.2,
+        "peak_ceil": 0.75,
+        "af": "highpass=f=65,lowpass=f=7400",
+        "anchors": [
+            (40, "E2.mp3"),
+            (43, "G2.mp3"),
+            (46, "As2.mp3"),
+            (49, "Cs3.mp3"),
+            (52, "E3.mp3"),
+            (55, "G3.mp3"),
+            (58, "As3.mp3"),
+            (61, "Cs4.mp3"),
+            (64, "E4.mp3"),
+            (67, "G4.mp3"),
+            (70, "As4.mp3"),
+            (74, "D5.mp3"),
         ],
     },
 }
@@ -544,7 +642,7 @@ def build_pack(pack_id: str, src_root: Path) -> None:
 
     if pack_id in MOVEMENTAL_PACKS:
         cfg = MOVEMENTAL_PACKS[pack_id]
-        pack_src = src_root / cfg["src_dir"]
+        pack_src = src_root / cfg["src_dir"] if cfg.get("src_dir") else src_root
         if not pack_src.is_dir():
             raise FileNotFoundError(
                 f"Local source folder not found: {pack_src} (pass --src-root PATH)"
@@ -631,8 +729,8 @@ def parse_args() -> argparse.Namespace:
         description="Verify or rebuild Paws Off choir and acoustic multi-sample packs.",
     )
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--list", action="store_true", help="List all 10 sampled instrument packs.")
-    mode.add_argument("--verify", action="store_true", help="Verify all 123 sample MP3s exist and are non-empty.")
+    mode.add_argument("--list", action="store_true", help="List all 16 sampled instrument packs.")
+    mode.add_argument("--verify", action="store_true", help="Verify all 184 sample MP3s exist and are non-empty.")
     mode.add_argument(
         "--pack",
         nargs="+",

@@ -8,6 +8,7 @@ export const VELVET_PAD_META: InstrumentPresetMeta = {
   id: 'velvet-pad',
   label: 'Velvet Pad',
   subtitle: 'Ambient swell',
+  category: 'synths',
   defaultReleaseSec: 0.55,
   rollStepSec: 0.0,
 };

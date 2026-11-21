@@ -11,6 +11,7 @@ export const GRAND_PIANO_META: InstrumentPresetMeta = {
   id: 'grand-piano',
   label: 'Grand Piano',
   subtitle: 'Salamander acoustic',
+  category: 'keys',
   defaultReleaseSec: 0.34,
   rollStepSec: 0.009,
 };
@@ -19,6 +20,7 @@ export const WARM_STRINGS_META: InstrumentPresetMeta = {
   id: 'warm-strings',
   label: 'Warm Strings',
   subtitle: 'Bowed ensemble',
+  category: 'strings',
   defaultReleaseSec: 0.56,
   rollStepSec: 0.0,
 };
@@ -27,6 +29,7 @@ export const CHAMBER_CELLO_META: InstrumentPresetMeta = {
   id: 'chamber-cello',
   label: 'Chamber Cello',
   subtitle: 'Rich bowed cello',
+  category: 'strings',
   defaultReleaseSec: 0.52,
   rollStepSec: 0.0,
 };
@@ -35,6 +38,7 @@ export const FRENCH_HORN_META: InstrumentPresetMeta = {
   id: 'french-horn',
   label: 'French Horn',
   subtitle: 'Warm brass choir',
+  category: 'winds',
   defaultReleaseSec: 0.48,
   rollStepSec: 0.0,
 };
@@ -43,6 +47,7 @@ export const CONCERT_HARP_META: InstrumentPresetMeta = {
   id: 'concert-harp',
   label: 'Concert Harp',
   subtitle: 'Plucked acoustic',
+  category: 'strings',
   defaultReleaseSec: 0.45,
   rollStepSec: 0.024,
 };
@@ -51,6 +56,7 @@ export const NYLON_GUITAR_META: InstrumentPresetMeta = {
   id: 'nylon-guitar',
   label: 'Nylon Guitar',
   subtitle: 'Classical acoustic',
+  category: 'strings',
   defaultReleaseSec: 0.34,
   rollStepSec: 0.018,
 };
@@ -59,6 +65,7 @@ export const CLEAN_GUITAR_META: InstrumentPresetMeta = {
   id: 'clean-guitar',
   label: 'Clean Guitar',
   subtitle: 'Warm jazz electric',
+  category: 'strings',
   defaultReleaseSec: 0.36,
   rollStepSec: 0.014,
 };
@@ -67,6 +74,7 @@ export const HARMONIUM_META: InstrumentPresetMeta = {
   id: 'harmonium',
   label: 'Harmonium',
   subtitle: 'Meditative reed organ',
+  category: 'keys',
   defaultReleaseSec: 0.48,
   rollStepSec: 0.0,
 };
@@ -75,6 +83,61 @@ export const PIPE_ORGAN_META: InstrumentPresetMeta = {
   id: 'pipe-organ',
   label: 'Pipe Organ',
   subtitle: 'Warm cathedral',
+  category: 'keys',
+  defaultReleaseSec: 0.42,
+  rollStepSec: 0.0,
+};
+
+export const MARIMBA_META: InstrumentPresetMeta = {
+  id: 'marimba',
+  label: 'Rosewood Marimba',
+  subtitle: 'Warm woody mallets',
+  category: 'synths',
+  defaultReleaseSec: 0.36,
+  rollStepSec: 0.011,
+};
+
+export const WOODWIND_CHOIR_META: InstrumentPresetMeta = {
+  id: 'woodwind-choir',
+  label: 'Woodwind Choir',
+  subtitle: 'Bassoon, clarinet & flute',
+  category: 'winds',
+  defaultReleaseSec: 0.44,
+  rollStepSec: 0.0,
+};
+
+export const STEEL_GUITAR_META: InstrumentPresetMeta = {
+  id: 'steel-guitar',
+  label: 'Steel Guitar',
+  subtitle: 'Bright acoustic folk',
+  category: 'strings',
+  defaultReleaseSec: 0.34,
+  rollStepSec: 0.016,
+};
+
+export const PIZZICATO_STRINGS_META: InstrumentPresetMeta = {
+  id: 'pizzicato-strings',
+  label: 'Pizzicato Strings',
+  subtitle: 'Plucked chamber strings',
+  category: 'strings',
+  defaultReleaseSec: 0.28,
+  rollStepSec: 0.008,
+};
+
+export const WARM_SAX_META: InstrumentPresetMeta = {
+  id: 'warm-sax',
+  label: 'Warm Saxophone',
+  subtitle: 'Velvet jazz sax',
+  category: 'winds',
+  defaultReleaseSec: 0.38,
+  rollStepSec: 0.0,
+};
+
+export const WARM_TROMBONE_META: InstrumentPresetMeta = {
+  id: 'warm-trombone',
+  label: 'Trombone Choir',
+  subtitle: 'Rich jazz brass',
+  category: 'winds',
   defaultReleaseSec: 0.42,
   rollStepSec: 0.0,
 };
@@ -159,6 +222,54 @@ const SAMPLE_PROFILES: Record<AcousticSampleTimbreId, SampleVoiceProfile> = {
     bassCutoffHz: 2200,
     upperCutoffHz: 4200,
     defaultReleaseSec: PIPE_ORGAN_META.defaultReleaseSec,
+    fallback: 'pad',
+  },
+  marimba: {
+    attackSec: 0.003,
+    gainBoost: 2.2,
+    bassCutoffHz: 2800,
+    upperCutoffHz: 6200,
+    defaultReleaseSec: MARIMBA_META.defaultReleaseSec,
+    fallback: 'piano',
+  },
+  'woodwind-choir': {
+    attackSec: 0.11,
+    gainBoost: 2.0,
+    bassCutoffHz: 2400,
+    upperCutoffHz: 5600,
+    defaultReleaseSec: WOODWIND_CHOIR_META.defaultReleaseSec,
+    fallback: 'pad',
+  },
+  'steel-guitar': {
+    attackSec: 0.004,
+    gainBoost: 2.2,
+    bassCutoffHz: 3200,
+    upperCutoffHz: 7200,
+    defaultReleaseSec: STEEL_GUITAR_META.defaultReleaseSec,
+    fallback: 'piano',
+  },
+  'pizzicato-strings': {
+    attackSec: 0.004,
+    gainBoost: 2.2,
+    bassCutoffHz: 2800,
+    upperCutoffHz: 6200,
+    defaultReleaseSec: PIZZICATO_STRINGS_META.defaultReleaseSec,
+    fallback: 'piano',
+  },
+  'warm-sax': {
+    attackSec: 0.09,
+    gainBoost: 2.0,
+    bassCutoffHz: 2200,
+    upperCutoffHz: 4800,
+    defaultReleaseSec: WARM_SAX_META.defaultReleaseSec,
+    fallback: 'pad',
+  },
+  'warm-trombone': {
+    attackSec: 0.1,
+    gainBoost: 2.0,
+    bassCutoffHz: 2000,
+    upperCutoffHz: 4200,
+    defaultReleaseSec: WARM_TROMBONE_META.defaultReleaseSec,
     fallback: 'pad',
   },
 };
@@ -257,4 +368,34 @@ export function buildHarmoniumVoice(params: VoiceBuildParams): BuiltVoiceNodes {
 
 export function buildPipeOrganVoice(params: VoiceBuildParams): BuiltVoiceNodes {
   return buildAcousticSampleVoice('pipe-organ', params);
+}
+
+export function buildMarimbaVoice(params: VoiceBuildParams): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('marimba', params);
+}
+
+export function buildWoodwindChoirVoice(
+  params: VoiceBuildParams,
+): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('woodwind-choir', params);
+}
+
+export function buildSteelGuitarVoice(params: VoiceBuildParams): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('steel-guitar', params);
+}
+
+export function buildPizzicatoStringsVoice(
+  params: VoiceBuildParams,
+): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('pizzicato-strings', params);
+}
+
+export function buildWarmSaxVoice(params: VoiceBuildParams): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('warm-sax', params);
+}
+
+export function buildWarmTromboneVoice(
+  params: VoiceBuildParams,
+): BuiltVoiceNodes {
+  return buildAcousticSampleVoice('warm-trombone', params);
 }

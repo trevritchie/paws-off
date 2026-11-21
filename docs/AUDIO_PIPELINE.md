@@ -78,12 +78,12 @@ uvx --from edge-tts python scripts/generate_voice_clips.py --only bass-3 bass-5 
 
 ## Part 2: Sampled Instrument Processing Pipeline
 
-Paws Off includes **10 sampled instruments** alongside 4 pure Web Audio synths (`felt-piano`, `warm-rhodes`, `velvet-pad`, `soft-vibes`):
+Paws Off includes **16 sampled instruments** alongside 14 pure Web Audio synths (`velvet-pad`, `felt-piano`, `warm-rhodes`, `soft-vibes`, `wurlitzer`, `juno-poly`, `jazz-organ`, `glass-celesta`, `lofi-tape`, `harpsichord`, `kalimba`, `analog-brass`, `retro-8bit`, `shimmer-pad`):
 
 - **SATB Choir** (`satb-choir` in `public/choir/`, 20 MP3s = 10 pitches x `ooh`/`ahh`)
-- **9 Acoustic Sample Packs** (`public/samples/<id>/`, 103 MP3s across 9 instruments)
+- **15 Acoustic Sample Packs** (`public/samples/<id>/`, 164 MP3s across 15 instruments)
 
-All 10 packs are codified in [`scripts/process_samples.py`](../scripts/process_samples.py). Every sample is converted to **44.1 kHz mono MP3 at `64 kbps`** (`libmp3lame`), giving small on-demand bundles (`~140-260 KB` per instrument) that decode fast in mobile Safari/Chrome while letting runtime Web Audio stereo panning (`StereoPannerNode`) place each SATB voice cleanly.
+All 16 packs are codified in [`scripts/process_samples.py`](../scripts/process_samples.py). Every sample is converted to **44.1 kHz mono MP3 at `64 kbps`** (`libmp3lame`), giving small on-demand bundles (`~140-260 KB` per instrument) that decode fast in mobile Safari/Chrome while letting runtime Web Audio stereo panning (`StereoPannerNode`) place each SATB voice cleanly.
 
 ### 2.1 Master Instrument Matrix
 
@@ -92,12 +92,18 @@ All 10 packs are codified in [`scripts/process_samples.py`](../scripts/process_s
 | `satb-choir` | FluidR3_GM `voice_oohs` & `choir_aahs` (CC-BY 3.0) | 10 x 2 vowels (`40..76`, every 4 st) | Sustained (`0.65s` splice) | `highpass=f=65,lowpass=f=6800` | `-18.0` / `0.92` (+reg tilt) | `64k` mono |
 | `grand-piano` | Salamander Grand Piano V3 (CC-BY 3.0) | 14 (`39..78`, minor 3rds) | Struck (`max 3.8s`) | `highpass=f=45,lowpass=f=8500` | `-17.5` / `0.90` (+reg tilt) | `64k` mono |
 | `concert-harp` | VSCO 2 CE Harp `mf` WAVs (CC0 1.0) | 13 (`38..79`) | Struck (`max 3.6s`) | `highpass=f=55,lowpass=f=8200` | `-18.0` / `0.90` (+reg tilt) | `64k` mono |
+| `marimba` | VSCO 2 CE Marimba Outrigger WAVs (CC0 1.0) | 8 (`36..77`) | Struck (`max 2.2s`) | `highpass=f=60,lowpass=f=6200` | `-18.0` / `0.90` (+reg tilt) | `64k` mono |
 | `warm-strings` | FluidR3_GM `string_ensemble_1` (CC-BY 3.0) | 10 (`40..76`, every 4 st) | Sustained (`0.65s` splice) | `highpass=f=60,lowpass=f=6400` | `-18.5` / `0.90` (+reg tilt) | `64k` mono |
+| `pizzicato-strings` | FluidR3_GM `pizzicato_strings` (CC-BY 3.0) | 10 (`40..76`, every 4 st) | Struck (`max 1.6s`) | `highpass=f=60,lowpass=f=6800` | `-18.5` / `0.90` (+reg tilt) | `64k` mono |
+| `warm-sax` | FluidR3_GM `tenor_sax` (CC-BY 3.0) | 10 (`40..76`, every 4 st) | Sustained (`0.65s` splice) | `highpass=f=55,equalizer=f=2400:t=q:w=1.2:g=-2.0,lowpass=f=5200` | `-18.8` / `0.90` (+reg tilt) | `64k` mono |
+| `warm-trombone` | FluidR3_GM `trombone` (CC-BY 3.0) | 10 (`40..76`, every 4 st) | Sustained (`0.65s` splice) | `highpass=f=50,equalizer=f=300:t=q:w=1.0:g=1.2,lowpass=f=4400` | `-18.8` / `0.90` (+reg tilt) | `64k` mono |
 | `pipe-organ` | FluidR3_GM `church_organ` (CC-BY 3.0) | 10 (`40..76`, every 4 st) | Sustained (`0.65s` splice) | `highpass=f=50,equalizer=f=240:t=q:w=1.0:g=1.5,lowpass=f=4200` | `-19.0` / `0.90` (+reg tilt) | `64k` mono |
 | `french-horn` | `tonejs-instruments` / Movemental `french-horn` (CC-BY 3.0) | 9 (`36..77`) | Sustained (`4.22s` loop) | `highpass=f=50,lowpass=f=5200` | `-19.0` / `0.63` | `64k` mono |
 | `chamber-cello` | `tonejs-instruments` / Movemental `cello` (CC-BY 3.0) | 11 (`40..72`) | Sustained (`4.22s` loop) | `highpass=f=55,lowpass=f=5800` | `-19.0` / `0.63` | `64k` mono |
+| `woodwind-choir` | `tonejs-instruments` `bassoon` + `clarinet` + `flute` (CC-BY 3.0) | 11 (`43..76`, split by register) | Sustained (`4.22s` loop) | `highpass=f=55,lowpass=f=6400` | `-19.0` / `0.64` | `64k` mono |
 | `harmonium` | `tonejs-instruments` / Movemental `harmonium` (CC-BY 3.0) | 12 (`40..74`) | Sustained (`4.22s` loop) | `highpass=f=60,equalizer=f=2200:t=q:w=1.2:g=-3.0,lowpass=f=3600` | `-19.5` / `0.60` | `64k` mono |
 | `clean-guitar` | `tonejs-instruments` / Movemental `guitar-electric` (CC-BY 3.0) | 13 (`42..78`) | Decaying (`max 3.8s`) | `highpass=f=65,lowpass=f=6800` | `-19.2` / `0.74` | `64k` mono |
+| `steel-guitar` | `tonejs-instruments` / Movemental `guitar-acoustic` (CC-BY 3.0) | 12 (`40..74`) | Decaying (`max 3.5s`) | `highpass=f=65,lowpass=f=7400` | `-19.2` / `0.75` | `64k` mono |
 | `nylon-guitar` | `tonejs-instruments` / Movemental `guitar-nylon` (CC-BY 3.0) | 11 (`40..76`) | Decaying (`max 3.4s`) | `highpass=f=65,lowpass=f=6400` | `-19.8` / `0.75` | `64k` mono |
 
 ### 2.2 The Three Sample-Processing Pipelines
@@ -168,4 +174,4 @@ Because Paws Off runs unattended in a pocket on mobile browsers, `MasterOutputCh
 
 ### 3.2 Pure Web Audio Wavetables (`src/audio/instruments/wavetables.ts`)
 
-Four pure Web Audio instruments (`wurlitzer`, `juno-poly`, `jazz-organ`, `glass-celesta`) use compact 32-harmonic Fourier tables (>99.97% spectral energy preserved, zero external sample fetch) derived from Google Chrome Labs [`web-audio-samples`](https://github.com/GoogleChromeLabs/web-audio-samples) (`Wurlitzer_2`, `Organ_2`, `Chorus_Strings`, `Twelve_OpTines`, Apache License 2.0), alongside a 20-harmonic band-limited analog sawtooth (`WARM_SAW_WAVETABLE`).
+Six pure Web Audio instruments (`wurlitzer`, `juno-poly`, `jazz-organ`, `glass-celesta`, `harpsichord`, `analog-brass`) use compact 32-harmonic Fourier tables (>99.88% spectral energy preserved, zero external sample fetch) derived from Google Chrome Labs [`web-audio-samples`](https://github.com/GoogleChromeLabs/web-audio-samples) (`Wurlitzer_2`, `Organ_2`, `Chorus_Strings`, `Twelve_OpTines`, `Brass`, `Twelve String Guitar 1`, Apache License 2.0), alongside band-limited 20-harmonic mathematical tables (`WARM_SAW_WAVETABLE`, `PULSE_25_WAVETABLE`).

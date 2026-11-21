@@ -9,6 +9,7 @@ export const GLASS_CELESTA_META: InstrumentPresetMeta = {
   id: 'glass-celesta',
   label: 'Glass Celesta',
   subtitle: 'Crystalline & bell-like',
+  category: 'synths',
   defaultReleaseSec: 0.52,
   rollStepSec: 0.016,
 };

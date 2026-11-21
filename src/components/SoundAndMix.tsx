@@ -2,6 +2,10 @@ import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { formatDroneNoteName } from '../audio/drone';
 import { getInstrumentPreset, INSTRUMENT_PRESETS } from '../audio/instruments';
+import {
+  TIMBRE_CATEGORY_OPTIONS,
+  type TimbreCategoryFilter,
+} from '../audio/instruments/types';
 import { AMBIENCE_OPTIONS } from '../audio/reverb';
 import { getScaleDegreePitchClass } from '../music/chords';
 import {
@@ -48,6 +52,16 @@ export function SoundAndMix({
   onPreviewMelodySound,
 }: SoundAndMixProps) {
   const [melodySoundOpen, setMelodySoundOpen] = useState(false);
+  const [chordCategory, setChordCategory] = useState<TimbreCategoryFilter>('all');
+  const [melodyCategory, setMelodyCategory] =
+    useState<TimbreCategoryFilter>('all');
+
+  const filteredChordPresets = INSTRUMENT_PRESETS.filter(
+    (option) => chordCategory === 'all' || option.category === chordCategory,
+  );
+  const filteredMelodyPresets = INSTRUMENT_PRESETS.filter(
+    (option) => melodyCategory === 'all' || option.category === melodyCategory,
+  );
 
   const droneResolvedPitch = formatDroneNoteName(
     getScaleDegreePitchClass(activeKey, settings.droneScaleDegree),
@@ -69,11 +83,35 @@ export function SoundAndMix({
           )}
         </div>
         <div
+          className="mt-2 grid grid-cols-5 gap-1"
+          role="group"
+          aria-label="Chord sound category"
+        >
+          {TIMBRE_CATEGORY_OPTIONS.map((cat) => {
+            const active = chordCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setChordCategory(cat.id)}
+                className={`min-h-[30px] rounded-lg border px-1 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C] ${
+                  active
+                    ? 'border-[#E5A93C] bg-[#E5A93C]/20 text-[#E5A93C]'
+                    : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+        <div
           className="mt-2 grid grid-cols-2 gap-1.5"
           role="group"
           aria-label="Synth sound"
         >
-          {INSTRUMENT_PRESETS.map((option) => {
+          {filteredChordPresets.map((option) => {
             const active = settings.timbre === option.id;
             return (
               <button
@@ -149,12 +187,36 @@ export function SoundAndMix({
                 )
               )}
               <div
+                className="mb-2 grid grid-cols-5 gap-1"
+                role="group"
+                aria-label="Melody sound category"
+              >
+                {TIMBRE_CATEGORY_OPTIONS.map((cat) => {
+                  const active = melodyCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setMelodyCategory(cat.id)}
+                      className={`min-h-[30px] rounded-lg border px-1 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4] ${
+                        active
+                          ? 'border-[#4FB3A4] bg-[#4FB3A4]/20 text-[#4FB3A4]'
+                          : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div
                 id="melody-sound-grid"
                 className="grid grid-cols-2 gap-1.5"
                 role="group"
                 aria-label="Melody sound"
               >
-                {INSTRUMENT_PRESETS.map((option) => {
+                {filteredMelodyPresets.map((option) => {
                   const active = settings.melodyTimbre === option.id;
                   return (
                     <button

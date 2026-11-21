@@ -8,6 +8,7 @@ export const JUNO_POLY_META: InstrumentPresetMeta = {
   id: 'juno-poly',
   label: 'Juno Poly',
   subtitle: 'Analog stereo synth',
+  category: 'synths',
   defaultReleaseSec: 0.44,
   rollStepSec: 0.0,
 };

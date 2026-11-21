@@ -9,6 +9,7 @@ export const SATB_CHOIR_META: InstrumentPresetMeta = {
   id: 'satb-choir',
   label: 'SATB Choir',
   subtitle: 'Ooh & Ahh voices',
+  category: 'winds',
   defaultReleaseSec: 0.56,
   rollStepSec: 0.0,
 };

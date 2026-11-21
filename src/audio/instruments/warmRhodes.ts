@@ -9,6 +9,7 @@ export const WARM_RHODES_META: InstrumentPresetMeta = {
   id: 'warm-rhodes',
   label: 'Warm Rhodes',
   subtitle: 'Vintage shimmer',
+  category: 'keys',
   defaultReleaseSec: 0.26,
   rollStepSec: 0.01,
 };

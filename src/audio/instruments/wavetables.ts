@@ -1,10 +1,11 @@
 /**
  * Compact 32-harmonic Fourier wavetables for pure Web Audio instruments.
  *
- * `WURLITZER_WAVETABLE`, `ORGAN_WAVETABLE`, `CHORUS_STRINGS_WAVETABLE`, and
- * `TINES_WAVETABLE` are derived from the first 32 harmonics (>99.97% spectral
- * energy preserved) of Google Chrome Labs `web-audio-samples` wavetable-synth
- * presets (`Wurlitzer_2`, `Organ_2`, `Chorus_Strings`, `Twelve_OpTines`),
+ * `WURLITZER_WAVETABLE`, `ORGAN_WAVETABLE`, `CHORUS_STRINGS_WAVETABLE`,
+ * `TINES_WAVETABLE`, `BRASS_WAVETABLE`, and `PLUCK_WAVETABLE` are derived from
+ * the first 32 harmonics (>99.88% spectral energy preserved) of Google Chrome
+ * Labs `web-audio-samples` wavetable-synth presets (`Wurlitzer_2`, `Organ_2`,
+ * `Chorus_Strings`, `Twelve_OpTines`, `Brass`, `Twelve String Guitar 1`),
  * licensed under the Apache License, Version 2.0.
  */
 
@@ -79,6 +80,40 @@ export const TINES_WAVETABLE: FourierTable = {
   ],
 };
 
+export const BRASS_WAVETABLE: FourierTable = {
+  real: [
+    0.0, -0.051411, -0.085181, -0.45332, -0.042603, 0.04083, -0.204758,
+    0.02603, -0.147721, -0.007584, -0.07638, -0.003137, -0.064948, 0.003745,
+    0.120424, -0.002757, 0.016572, 0.001757, 0.005585, 0.001412, -0.011589,
+    -0.001676, -0.010206, -0.005745, 0.002632, -0.001359, -0.001483,
+    -0.003481, -0.005393, 0.003601, 0.004419, -0.002671, 0.001664,
+  ],
+  imag: [
+    0.0, 0.123894, 0.15737, 0.210952, -0.07615, -0.145613, -0.004471,
+    -0.011613, 0.068694, 0.033905, 0.119128, -0.001508, -0.005879, 0.004987,
+    -0.012356, -0.002032, 0.002838, 0.00564, 0.016947, 0.003254, 0.012119,
+    0.001022, 0.001041, -0.006764, 0.006971, 0.006519, 0.00636, -0.005381,
+    0.001966, 0.003007, 0.000692, -0.003329, -0.003718,
+  ],
+};
+
+export const PLUCK_WAVETABLE: FourierTable = {
+  real: [
+    0.0, -0.0, -0.179748, 0.252497, -0.212162, 0.069443, -0.067304, 0.006291,
+    -0.063344, 0.007604, -0.069661, 0.004429, -0.01903, 0.000601, -0.001895,
+    0.000841, -0.009026, 0.001311, -0.024059, 0.002217, -0.019063, 0.002118,
+    -0.04849, 0.000659, -0.007014, 0.000529, -0.003632, 0.000157, -0.000265,
+    0.000046, -0.000325, 0.000503, -0.002858,
+  ],
+  imag: [
+    0.0, 0.20893, -0.000001, 0.000004, -0.000005, 0.000003, -0.000004, 0.0,
+    -0.000006, 0.000001, -0.00001, 0.000001, -0.000004, 0.0, -0.000001, 0.0,
+    -0.000003, 0.000001, -0.000012, 0.000001, -0.000011, 0.000001, -0.000035,
+    0.000001, -0.000006, 0.0, -0.000004, 0.0, 0.0, 0.0, 0.0, 0.000001,
+    -0.000004,
+  ],
+};
+
 // Band-limited 20-harmonic analog sawtooth with smooth high-frequency cosine rolloff.
 const WARM_SAW_SIZE = 21;
 export const WARM_SAW_WAVETABLE: FourierTable = {
@@ -87,6 +122,16 @@ export const WARM_SAW_WAVETABLE: FourierTable = {
     if (k === 0) return 0;
     const rolloff = Math.cos(((k - 1) / WARM_SAW_SIZE) * (Math.PI * 0.5));
     return (2 / (k * Math.PI)) * rolloff * rolloff;
+  }),
+};
+
+// Band-limited 20-harmonic 25% duty-cycle retro pulse wave with gentle Gibbs smoothing.
+export const PULSE_25_WAVETABLE: FourierTable = {
+  real: Array.from({ length: WARM_SAW_SIZE }, () => 0),
+  imag: Array.from({ length: WARM_SAW_SIZE }, (_, k) => {
+    if (k === 0) return 0;
+    const rolloff = Math.cos(((k - 1) / WARM_SAW_SIZE) * (Math.PI * 0.5));
+    return (2 / (k * Math.PI)) * Math.sin(k * Math.PI * 0.25) * rolloff;
   }),
 };
 

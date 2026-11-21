@@ -3,18 +3,36 @@ import type { TimbreId } from '../../types/settings';
 import type { ChoirSampleBank } from '../choirSamples';
 import type { AcousticSampleBank } from '../sampleBank';
 import {
+  BRASS_WAVETABLE,
   CHORUS_STRINGS_WAVETABLE,
   createPeriodicWaveFromTable,
   ORGAN_WAVETABLE,
+  PLUCK_WAVETABLE,
+  PULSE_25_WAVETABLE,
   TINES_WAVETABLE,
   WARM_SAW_WAVETABLE,
   WURLITZER_WAVETABLE,
 } from './wavetables';
 
+export type TimbreCategory = 'keys' | 'strings' | 'winds' | 'synths';
+export type TimbreCategoryFilter = 'all' | TimbreCategory;
+
+export const TIMBRE_CATEGORY_OPTIONS: readonly {
+  id: TimbreCategoryFilter;
+  label: string;
+}[] = [
+  { id: 'all', label: 'All' },
+  { id: 'keys', label: 'Keys' },
+  { id: 'strings', label: 'Strings' },
+  { id: 'winds', label: 'Winds' },
+  { id: 'synths', label: 'Synths' },
+];
+
 export interface InstrumentPresetMeta {
   id: TimbreId;
   label: string;
   subtitle: string;
+  category: TimbreCategory;
   defaultReleaseSec: number;
   rollStepSec: number;
 }
@@ -27,6 +45,9 @@ export interface VoiceSharedResources {
   organWave: PeriodicWave | null;
   chorusStringsWave: PeriodicWave | null;
   tinesWave: PeriodicWave | null;
+  brassWave: PeriodicWave | null;
+  pluckWave: PeriodicWave | null;
+  pulse25Wave: PeriodicWave | null;
   noiseBurstBuffer: AudioBuffer;
   warmTubeCurve: Float32Array<ArrayBuffer>;
   reedBarkCurve: Float32Array<ArrayBuffer>;
@@ -95,6 +116,9 @@ export function createVoiceSharedResources(
     CHORUS_STRINGS_WAVETABLE,
   );
   const tinesWave = createPeriodicWaveFromTable(ctx, TINES_WAVETABLE);
+  const brassWave = createPeriodicWaveFromTable(ctx, BRASS_WAVETABLE);
+  const pluckWave = createPeriodicWaveFromTable(ctx, PLUCK_WAVETABLE);
+  const pulse25Wave = createPeriodicWaveFromTable(ctx, PULSE_25_WAVETABLE);
 
   // Reusable 50ms smooth white-noise buffer for organic felt/mallet transients
   const burstSamples = Math.max(1, Math.floor(ctx.sampleRate * 0.05));
@@ -105,7 +129,7 @@ export function createVoiceSharedResources(
     burstData[i] = (Math.random() * 2 - 1) * window;
   }
 
-  // Subtle warm saturation curve for vintage Rhodes
+  // Subtle warm saturation curve for vintage Rhodes & tape keys
   const curveLen = 512;
   const warmTubeCurve = new Float32Array(new ArrayBuffer(curveLen * 4));
   const norm = Math.tanh(1.35);
@@ -136,6 +160,9 @@ export function createVoiceSharedResources(
     organWave,
     chorusStringsWave,
     tinesWave,
+    brassWave,
+    pluckWave,
+    pulse25Wave,
     noiseBurstBuffer,
     warmTubeCurve,
     reedBarkCurve,

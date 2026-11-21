@@ -8,6 +8,7 @@ export const JAZZ_ORGAN_META: InstrumentPresetMeta = {
   id: 'jazz-organ',
   label: 'Jazz Organ',
   subtitle: 'Warm B3 drawbars',
+  category: 'keys',
   defaultReleaseSec: 0.18,
   rollStepSec: 0.004,
 };

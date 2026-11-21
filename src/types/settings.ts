@@ -57,7 +57,19 @@ export type TimbreId =
   | 'wurlitzer'
   | 'juno-poly'
   | 'jazz-organ'
-  | 'glass-celesta';
+  | 'glass-celesta'
+  | 'marimba'
+  | 'woodwind-choir'
+  | 'steel-guitar'
+  | 'pizzicato-strings'
+  | 'warm-sax'
+  | 'warm-trombone'
+  | 'lofi-tape'
+  | 'harpsichord'
+  | 'kalimba'
+  | 'analog-brass'
+  | 'retro-8bit'
+  | 'shimmer-pad';
 export type ResolvedOutputProfile = 'phone-speaker' | 'headphones';
 export type AudioOutputProfile = 'auto' | ResolvedOutputProfile;
 export type AmbienceMode = 'dry' | 'warm-room' | 'lush-hall';
@@ -188,6 +200,18 @@ export const RECOMMENDED_MELODY_TIMBRE: Record<TimbreId, TimbreId> = {
   'juno-poly': 'glass-celesta',
   'jazz-organ': 'warm-rhodes',
   'glass-celesta': 'warm-strings',
+  marimba: 'woodwind-choir',
+  'woodwind-choir': 'concert-harp',
+  'steel-guitar': 'warm-sax',
+  'pizzicato-strings': 'woodwind-choir',
+  'warm-sax': 'warm-rhodes',
+  'warm-trombone': 'warm-sax',
+  'lofi-tape': 'kalimba',
+  harpsichord: 'woodwind-choir',
+  kalimba: 'lofi-tape',
+  'analog-brass': 'glass-celesta',
+  'retro-8bit': 'glass-celesta',
+  'shimmer-pad': 'kalimba',
 };
 
 export function getRecommendedMelodyTimbre(chordTimbre: TimbreId): TimbreId {
@@ -381,6 +405,18 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
     'juno-poly',
     'jazz-organ',
     'glass-celesta',
+    'marimba',
+    'woodwind-choir',
+    'steel-guitar',
+    'pizzicato-strings',
+    'warm-sax',
+    'warm-trombone',
+    'lofi-tape',
+    'harpsichord',
+    'kalimba',
+    'analog-brass',
+    'retro-8bit',
+    'shimmer-pad',
   ];
   const timbre: TimbreId =
     typeof obj.timbre === 'string' &&

@@ -9,6 +9,7 @@ export const SOFT_VIBES_META: InstrumentPresetMeta = {
   id: 'soft-vibes',
   label: 'Soft Vibes',
   subtitle: 'Pure & resonant',
+  category: 'synths',
   defaultReleaseSec: 0.48,
   rollStepSec: 0.012,
 };

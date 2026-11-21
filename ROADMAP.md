@@ -9,7 +9,7 @@ The codebase enforces clean boundaries so music theory, audio rendering, session
 | Chord & Theory | `src/music/chords.ts`, `generator.ts` | 23 chords (diatonic triads/7ths + secondary dominants), strict/free resolution, 5 inversion notation modes |
 | Voicing & Melody | `src/music/voicing.ts`, `melody.ts` | `RootBassVoiceLedStrategy` (4-voice SATB Viterbi DP) + stochastic counterpoint melody beam search (`Chord tones only` / `Allow tensions`) |
 | Arrangement | `src/music/arrangement.ts`, `panning.ts` | `WarmBlockArrangement` (`bass` / `harmony` / `melody` roles) + stereo panning (`left-to-right`, `satb`, `random`) |
-| Sound Engine | `src/audio/synth.ts`, `src/audio/mastering.ts`, `src/audio/instruments/` | `PolySynth` with separate `chordBus` & `melodyBus`, 18 timbres (8 synths, `SATB Choir`, 9 sampled acoustic packs), studio ER reverb, and `MasterOutputChain` (`Auto` / `Phone Speaker` / `Headphones`) |
+| Sound Engine | `src/audio/synth.ts`, `src/audio/mastering.ts`, `src/audio/instruments/` | `PolySynth` with separate `chordBus` & `melodyBus`, 30 timbres (14 synths, `SATB Choir`, 15 sampled acoustic packs), category picker, studio ER reverb, and `MasterOutputChain` (`Auto` / `Phone Speaker` / `Headphones`) |
 | Voice Output | `src/engine/hybridAnnouncer.ts` | `HybridVoiceAnnouncer` (`AudioBufferAnnouncer` with 73 mastered MP3s + 2-clip chaining, `WebSpeechAnnouncer` fallback) |
 | Session Loop | `src/engine/sessionController.ts` | Epoch-guarded state machine + `PocketManager` (Media Session, Wake Lock, `SilentKeepAlive`) + Web Worker clock |
 
@@ -22,7 +22,7 @@ The codebase enforces clean boundaries so music theory, audio rendering, session
 - **Pre-Rendered Voice Clips:** 73 broadcast-mastered `en-US-AvaNeural` MP3 clips with 2-clip overlap chaining (`CHAIN_OVERLAP_SEC = 0.19`) and documented offline TTS pipeline (`scripts/generate_voice_clips.py`).
 - **14 Timbres & Sample Pipeline:** 4 Web Audio synths, sampled+formant `SATB Choir`, and 9 sampled acoustic instruments processed via `scripts/process_samples.py` and documented in `docs/AUDIO_PIPELINE.md`.
 - **Counterpoint Melody Overlay:** Top-line melody (`Melody over chords`) with `Allow tensions`, melody volume slider, and auto-paired contrasting melody timbres with manual override.
-- **Studio Mastering & Expanded Synth Lineup (18 Timbres):** Native Web Audio `MasterOutputChain` (`Auto` output detection with `Phone Speaker` / `Headphones` override in Advanced settings, sub-bass HPF, `4x` missing-fundamental bass exciter, glue compressor, `4x` transparent soft-clipper, and brickwall safety limiter), multi-tap early-reflection reverb, upgraded synth articulation, and 4 new wavetable instruments (`Wurlitzer EP`, `Juno Poly`, `Jazz Organ`, `Glass Celesta`).
+- **Studio Mastering & Expanded 30-Timbre Library:** Native Web Audio `MasterOutputChain` (`Auto` output detection with `Phone Speaker` / `Headphones` override in Advanced settings, sub-bass HPF, `4x` missing-fundamental bass exciter, glue compressor, `4x` transparent soft-clipper, and brickwall safety limiter), multi-tap early-reflection reverb, category filter tabs (`All | Keys | Strings | Winds | Synths`), 6 new sampled acoustic packs (`Rosewood Marimba`, `Woodwind Choir`, `Steel Guitar`, `Pizzicato Strings`, `Warm Saxophone`, `Trombone Choir`), and 10 new pure Web Audio synths (`Wurlitzer EP`, `Juno Poly`, `Jazz Organ`, `Glass Celesta`, `Lo-Fi Tape Keys`, `Harpsichord`, `Kalimba`, `Analog Brass`, `Retro 8-Bit`, `Shimmer Pad`).
 
 ---
 

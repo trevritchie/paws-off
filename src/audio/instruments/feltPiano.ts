@@ -9,6 +9,7 @@ export const FELT_PIANO_META: InstrumentPresetMeta = {
   id: 'felt-piano',
   label: 'Felt Piano',
   subtitle: 'Soft & intimate',
+  category: 'keys',
   defaultReleaseSec: 0.3,
   rollStepSec: 0.011,
 };

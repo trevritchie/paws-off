@@ -154,6 +154,66 @@ describe('Paws Off App UI', () => {
       }),
     ).toBeInTheDocument();
     expect(
+      within(soundGroup).getByRole('button', {
+        name: /rosewood marimba.*warm woody mallets/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /woodwind choir.*bassoon, clarinet & flute/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /steel guitar.*bright acoustic folk/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /pizzicato strings.*plucked chamber strings/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /warm saxophone.*velvet jazz sax/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /trombone choir.*rich jazz brass/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /lo-fi tape keys.*cozy warm flutter/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /harpsichord.*crisp baroque pluck/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /kalimba.*woody thumb piano/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /analog brass.*prophet filter swell/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /retro 8-bit.*crisp pulse & nes bass/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(soundGroup).getByRole('button', {
+        name: /shimmer pad.*airy celestial glass/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('button', { name: /melody sound/i }),
     ).toHaveAttribute('aria-expanded', 'false');
     expect(
@@ -663,5 +723,51 @@ describe('Paws Off App UI', () => {
       within(chordSoundGroup).getByRole('button', { name: /soft vibes/i }),
     );
     expect(within(melodySoundBtn).getByText('Warm Rhodes')).toBeInTheDocument();
+  });
+
+  it('filters Chord sound and Melody sound presets by category tabs', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const chordCategoryGroup = screen.getByRole('group', {
+      name: /chord sound category/i,
+    });
+    const chordGrid = screen.getByRole('group', { name: /synth sound/i });
+    expect(within(chordGrid).getAllByRole('button')).toHaveLength(30);
+
+    await user.click(
+      within(chordCategoryGroup).getByRole('button', { name: 'Winds' }),
+    );
+    expect(within(chordGrid).getAllByRole('button')).toHaveLength(5);
+    expect(
+      within(chordGrid).getByRole('button', { name: /woodwind choir/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(chordGrid).queryByRole('button', { name: /grand piano/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(chordCategoryGroup).getByRole('button', { name: 'All' }),
+    );
+    expect(within(chordGrid).getAllByRole('button')).toHaveLength(30);
+
+    // Melody sound category tabs inside collapsed drawer
+    await user.click(screen.getByRole('button', { name: /melody sound/i }));
+    const melodyCategoryGroup = screen.getByRole('group', {
+      name: /melody sound category/i,
+    });
+    const melodyGrid = document.getElementById('melody-sound-grid')!;
+    expect(within(melodyGrid).getAllByRole('button')).toHaveLength(30);
+
+    await user.click(
+      within(melodyCategoryGroup).getByRole('button', { name: 'Keys' }),
+    );
+    expect(within(melodyGrid).getAllByRole('button')).toHaveLength(9);
+    expect(
+      within(melodyGrid).getByRole('button', { name: /harpsichord/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(melodyGrid).queryByRole('button', { name: /kalimba/i }),
+    ).not.toBeInTheDocument();
   });
 });
