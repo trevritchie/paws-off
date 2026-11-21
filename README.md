@@ -1,42 +1,40 @@
 # Paws Off
 
-Hands-free, pocket-ready chord progression ear trainer built with React, TypeScript, Vite, Tailwind CSS, and the Web Audio API.
+A hands-free, pocket-friendly chord progression ear trainer built with React, TypeScript, Tailwind CSS, and the Web Audio API. Designed for listening with your phone in your pocket: hear a tonal orientation cadence, a progression with optional counterpoint melody, a configurable pause to audiated/think, and a spoken answer reveal before moving automatically to the next question.
 
-**Live App:** https://trevritchie.github.io/paws-off/
+Live app: https://trevritchie.github.io/paws-off/
 
-## Features (v1)
+## Features
 
-- **Major Scale Harmony:** All 14 diatonic chords across 12 major keys — Triads (`I`, `ii`, `iii`, `IV`, `V`, `vi`, `vii°`) and Seventh Chords (`Imaj7`, `ii7`, `iii7`, `IVmaj7`, `V7`, `vi7`, `viiø7`), with quick-select presets.
-- **Voice-Led Web Audio Synthesis:** Warm Electric Piano (default) and Soft Pad timbres with root-bass + Viterbi DP-smoothed upper voices, soft room reverb, ducking during speech, and an optional Chromatic Drone.
-- **Drift-Free Hands-Free Loop:** Web Worker lookahead scheduler (`AudioContext.currentTime`) running orientation (`"Key of X"` + `I–IV–V–I` cadence), question repeats, hybrid tempo-grid / speech-priority Answer Reveal (`"Seven half diminished"` or `"Seven minor seven flat five"`), optional post-answer replay, and automatic key rotation.
-- **Pocket-Ready Mobile Support:** Silent PCM WAV keep-alive, `navigator.mediaSession` lock-screen metadata & headphone transport controls, Screen Wake Lock, and PWA Home Screen installability.
+- **23 Chords**: All 7 diatonic triads, all 7 diatonic sevenths, and 9 secondary dominants (`V/x` and `V7/x`, with strict resolution or free mode).
+- **4-Voice SATB Inversions**: Viterbi voice-led SATB voicings with global inversion defaults, progressive-disclosure per-chord overrides, and 5 display/spoken notation modes (`Inversion name`, `Figured bass`, `Bass tone`, `Scale degree`, `Solfege`).
+- **Counterpoint Melody Overlay**: Optional top-line melody (`Melody over chords`) with `Allow tensions`, a dedicated melody volume slider, and auto-paired melody sounds (with full manual override).
+- **14 Sound Presets & Mixing**: 4 Web Audio synths (`Velvet Pad`, `Felt Piano`, `Warm Rhodes`, `Soft Vibes`), sampled+formant `SATB Choir`, and 9 sampled acoustic instruments (`Grand Piano`, `Warm Strings`, `Chamber Cello`, `French Horn`, `Concert Harp`, `Nylon Guitar`, `Clean Guitar`, `Harmonium`, `Pipe Organ`), plus stereo voice panning and a tonic drone.
+- **Zero-Latency Recorded Voice**: 73 pre-rendered, broadcast-mastered voice clips with 2-clip inversion chaining and automatic Web Speech API fallback.
+- **Hands-Free & Pocket Ready**: Lock-screen Media Session controls (play, stop, replay, skip), Screen Wake Lock, silent audio keep-alive, and Web Worker lookahead timing.
+- **Key Rotation & Tempo Control**: Stay in a fixed key or auto-rotate every N questions, and independently tune question BPM, answer-reveal BPM, thinking time, and repeats.
 
-## Development
+## Running Locally
 
 ```bash
 npm install
-npm run dev      # Start local dev server
-npm test         # Run Vitest unit & UI suites
-npm run build    # Type-check and build production bundle
+npm run dev
 ```
 
-See [ROADMAP.md](./ROADMAP.md) for post-v1 plans (variable rhythms, inversions, drum grooves, top-line melodies, and pre-rendered voice clips).
-
-## Audio Assets & Mastering
-
-Spoken announcements (`public/voice/`), SATB choir multi-samples (`public/choir/`), and acoustic instrument multi-samples (`public/samples/`) are built and verified with reproducible scripts documented in [docs/AUDIO_PIPELINE.md](./docs/AUDIO_PIPELINE.md):
+## Testing & Building
 
 ```bash
-python3 scripts/generate_voice_clips.py --verify   # Verify all 73 TTS voice MP3s
-python3 scripts/process_samples.py --verify        # Verify all 123 choir + instrument MP3s
-
-# Regenerate or add voice clips via Microsoft Edge AvaNeural TTS + broadcast mastering
-uvx --from edge-tts python scripts/generate_voice_clips.py --only bass-3 bass-5 bass-7
+npm test          # Run Vitest unit & component tests (59 tests)
+npm run build     # Type-check and build production bundle to dist/
 ```
 
-## Credits
+## Documentation
 
-- **Grand Piano** samples derived from Salamander Grand Piano V3 (Alexander Holm, CC-BY 3.0).
-- **Concert Harp** samples derived from VSCO 2 Community Edition (Versilian Studios, CC0 1.0 Public Domain).
-- **Chamber Cello**, **French Horn**, **Nylon Guitar**, **Clean Guitar**, and **Harmonium** samples derived from `tonejs-instruments` (CC-BY 3.0).
-- **SATB Choir** (`voice_oohs`, `choir_aahs`), **Warm Strings** (`string_ensemble_1`), and **Pipe Organ** (`church_organ`) multi-samples derived from FluidR3_GM (Frank Wen / midi-js-soundfonts, CC-BY 3.0).
+- [AGENTS.md](AGENTS.md) - Concise project guide, commands, invariants, and gotchas for coding agents
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Module boundaries, session state machine, SATB/melody pipeline, and Web Audio signal graph
+- [docs/AUDIO_PIPELINE.md](docs/AUDIO_PIPELINE.md) - Offline Edge-TTS voice generation, FFmpeg mastering, and acoustic sample processing pipelines
+- [ROADMAP.md](ROADMAP.md) - Shipped milestones and planned future features
+
+## Sample Attribution
+
+Acoustic and choir sample packs are derived from CC-BY 3.0 and CC0 1.0 sources (FluidR3_GM, Salamander Grand Piano V3, VSCO 2 CE Harp, and `tonejs-instruments`) and processed offline at 44.1 kHz mono 64k MP3. See [docs/AUDIO_PIPELINE.md](docs/AUDIO_PIPELINE.md) for the complete source and license matrix.

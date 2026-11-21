@@ -125,6 +125,7 @@ Processed MP3s are further shaped in real time by `src/audio/sampleBank.ts`, `sr
 - **Sustained hardware looping:** Sustained packs (`sustained: true`) and `satb-choir` enable `AudioBufferSourceNode.loop = true` between `loopStart = min(0.8, max(0.2, duration * 0.2))` and `loopEnd = max(loopStart + 0.5, duration - 0.35)` so arbitrarily slow chord holds never cut off early.
 - **Per-register lowpass polish (`Q = 0.5`):** Bass notes (`role === 'bass'`) use a tighter cutoff (`bassCutoffHz`: `1900-3400 Hz`, `2600 Hz` choir) while upper voices open up (`upperCutoffHz`: `3400-7600 Hz`, `5200 Hz` choir).
 - **Level calibration & envelopes:** Each voice multiplies `peakGain * gainBoost` (`1.9` harmonium up to `2.25` grand piano / nylon guitar; `2.1` choir), uses custom `attackSec` (`0.004-0.22s`) and `defaultReleaseSec` (`0.34-0.56s`), and applies gentle rolled strums/arpeggios via `rollStepSec` (`0.009s` piano, `0.014s` clean guitar, `0.018s` nylon guitar, `0.024s` concert harp).
+- **Melody bus routing (`role === 'melody'`):** Melody notes route through `melodyBus -> melodyLevelGain -> voicePocketEq` (bypassing `warmthFilter` so the top line cuts cleanly above chord accompaniment), scale independently with `MELODY_COUNT_SCALE = 0.58`, and use brighter/tighter attack, release, and lowpass shaping than chord voices.
 - **Offline graceful fallback:** If sample assets are not yet decoded or offline, sustained packs fall back to `Velvet Pad`, struck/plucked packs fall back to `Felt Piano`, and `SATB Choir` falls back to its Csound Appendix D multi-band formant synthesizer.
 
 ### 2.4 Sample Commands & Checklist
@@ -144,4 +145,4 @@ python3 scripts/process_samples.py --pack chamber-cello --src-root ../Movemental
 **Checklist when adding a new sampled instrument:**
 1. Add its anchor list and FFmpeg/LUFS configuration in `scripts/process_samples.py` and generate into `public/samples/<id>/`.
 2. Add its `id` to `AcousticSampleTimbreId` and `ACOUSTIC_PACK_CONFIGS` in `src/audio/sampleBank.ts`, bump `ACOUSTIC_SAMPLES_VERSION`, and add its metadata + `SAMPLE_PROFILES` entry in `src/audio/instruments/sampledVoices.ts`.
-3. Wire its ID into `TimbreId`, `settings.ts`, `src/audio/synth.ts`, `src/audio/instruments/index.ts`, `src/components/SoundSettings.tsx`, attribution in `README.md`, and coverage in `src/audio/__tests__/audio.test.ts`.
+3. Wire its ID into `TimbreId`, `RECOMMENDED_MELODY_TIMBRE` in `src/types/settings.ts`, `src/audio/synth.ts`, `src/audio/instruments/index.ts`, `src/components/SoundAndMix.tsx`, attribution in `README.md`, and coverage in `src/audio/__tests__/audio.test.ts`.

@@ -1,39 +1,33 @@
-# Paws Off: Architecture & Post-v1 Roadmap
+# Paws Off Roadmap
 
-## v1 Architecture Boundaries
+## Architecture Boundaries
 
-Paws Off separates music theory, real-time synthesis, voice announcing, and session orchestration behind small interfaces so advanced musical features can be added without rewriting the lookahead scheduler or UI:
+The codebase enforces clean boundaries so music theory, audio rendering, session orchestration, and UI stay decoupled:
 
-| Abstraction | File | v1 Implementation | Post-v1 Extension Point |
-| :--- | :--- | :--- | :--- |
-| `VoicingStrategy` | `src/music/voicing.ts` | `RootBassVoiceLedStrategy` (root in bass `[E2, G3]` + DP-smoothed 3-note upper structure) | Chord inversions / slash chords, Drop-2 voicings, open quartal voicings, spread jazz voicings |
-| `ArrangementStrategy` | `src/music/arrangement.ts` | `WarmBlockArrangement` (2-beat block chords with 10ms micro-roll) | Variable harmonic rhythms, rhythmic comping patterns, arpeggiated accompaniments, bass+melody layering |
-| `SynthEngine` | `src/audio/synth.ts` | `PolySynth` (Electric Piano + Soft Pad, ducking bus, room IR, compressor) | Additional timbres (acoustic piano, Rhodes tremolo, organ), dedicated drum & melody sub-buses |
-| `VoiceAnnouncer` | `src/engine/speech.ts` | `WebSpeechAnnouncer` (browser TTS with gesture unlock & watchdog) | `AudioBufferAnnouncer` using bundled `.opus`/`.mp3` clips scheduled directly on `AudioContext.currentTime` |
+| Layer | File / Interface | Current Implementation |
+| --- | --- | --- |
+| Chord & Theory | `src/music/chords.ts`, `generator.ts` | 23 chords (diatonic triads/7ths + secondary dominants), strict/free resolution, 5 inversion notation modes |
+| Voicing & Melody | `src/music/voicing.ts`, `melody.ts` | `RootBassVoiceLedStrategy` (4-voice SATB Viterbi DP) + stochastic counterpoint melody beam search (`Chord tones only` / `Allow tensions`) |
+| Arrangement | `src/music/arrangement.ts`, `panning.ts` | `WarmBlockArrangement` (`bass` / `harmony` / `melody` roles) + stereo panning (`left-to-right`, `satb`, `random`) |
+| Sound Engine | `src/audio/synth.ts`, `src/audio/instruments/` | `PolySynth` with separate `chordBus` & `melodyBus`, 14 timbres (4 synths, `SATB Choir`, 9 sampled acoustic packs) |
+| Voice Output | `src/engine/hybridAnnouncer.ts` | `HybridVoiceAnnouncer` (`AudioBufferAnnouncer` with 73 mastered MP3s + 2-clip chaining, `WebSpeechAnnouncer` fallback) |
+| Session Loop | `src/engine/sessionController.ts` | Epoch-guarded state machine + `PocketManager` (Media Session, Wake Lock, `SilentKeepAlive`) + Web Worker clock |
 
 ---
 
-## Planned Post-v1 Features
+## Shipped Milestones
 
-### 1. Variable Rhythms & Comping Patterns
-- Implement new `ArrangementStrategy` classes returning multi-hit `ScheduledNote[]` events per chord slot (e.g., syncopated Bossa/Pop pushes, 3/4 waltz pulse, half-time & double-time harmonic changes).
-- Extend `generator.ts` to pair progressions with rhythmic bar lengths (`1`, `2`, `4` beats per chord or mixed durations).
+- **Secondary Dominants:** `V/x` and `V7/x` chords with strict resolution mode and progression weighting.
+- **4-Voice SATB Inversions & Progressive Disclosure:** Global + per-chord inversion toggles across triads, sevenths, and secondary dominants, with 5 display/spoken modes (`inversion-name`, `figured-bass`, `bass-tone`, `scale-degree`, `solfege`).
+- **Pre-Rendered Voice Clips:** 73 broadcast-mastered `en-US-AvaNeural` MP3 clips with 2-clip overlap chaining (`CHAIN_OVERLAP_SEC = 0.19`) and documented offline TTS pipeline (`scripts/generate_voice_clips.py`).
+- **14 Timbres & Sample Pipeline:** 4 Web Audio synths, sampled+formant `SATB Choir`, and 9 sampled acoustic instruments processed via `scripts/process_samples.py` and documented in `docs/AUDIO_PIPELINE.md`.
+- **Counterpoint Melody Overlay:** Top-line melody (`Melody over chords`) with `Allow tensions`, melody volume slider, and auto-paired contrasting melody timbres with manual override.
 
-### 2. Chord Inversions & Advanced Voicings
-- Extend `VoicedChord` / `VoicingStrategy` with bass degree constraints (`root`, `1st inversion`, `2nd inversion`, `3rd inversion`) and wider Drop-2 / open-position spreads.
-- Add slash-chord Roman numeral notation (`I6`, `V6/4`, `V4/2`) and spoken phrasing options in `src/music/chords.ts`.
+---
 
-### 3. Drum Grooves & Metronome Feel
-- Add a lightweight Web Audio drum synthesizer (`DrumEngine`: kick, snare/cross-stick, brushed hi-hat) driven directly by the existing `200ms` Web Worker lookahead clock and `AudioContext.currentTime`.
-- Include groove presets (Dry, Simple Click, Brushed Swing, Pop Pocket) with an independent volume fader and automatic ducking during Answer Reveal.
+## Planned Features
 
-### 4. Random Diatonic Melodies Over Progressions
-- Add a melody generator constrained to chord tones on strong beats and passing/neighbor scale tones on offbeats, emitted as `role: 'melody'` events in `ArrangementStrategy` and rendered via a dedicated bell/lead voice in `PolySynth`.
-
-### 5. Zero-Latency Pre-Rendered Voice Clips & Native Mobile Shell
-- Implement `AudioBufferAnnouncer` behind `VoiceAnnouncer` with ~28 pre-recorded harmonic phrases (`"One"`, `"Six minor"`, `"Seven minor seven flat five"`, `"Key of E flat"`, etc.) scheduled sample-accurately via `AudioBufferSourceNode` — eliminating OS TTS jitter and iOS locked-screen TTS blocks.
-- Optional Capacitor wrapper for App Store / Play Store background audio guarantees while reusing 100% of the TypeScript music engine, Web Audio synth, and React UI.
-
-### 6. Expanded Harmony & Ear Training Modes
-- Natural/harmonic/melodic minor scales and diatonic modes (Dorian, Mixolydian, Lydian).
-- Secondary dominants (`V/V`, `V/vi`), modal interchange (`♭VII`, `iv`, `♭VI`), and custom chord-progression templates.
+- **Variable Rhythms & Comping Patterns:** Beyond block chords into broken arpeggios, Alberti bass, waltz, bossa nova, and jazz comping.
+- **Drum Grooves & Metronome Feel:** Synthesized or sampled drum kit layers (kick, snare, ride, hi-hat) aligned to the Web Audio clock for rhythmic ear training.
+- **Minor Keys, Modes & Custom Templates:** Natural/harmonic/melodic minor, diatonic modes, modal interchange, and user-authored progression templates.
+- **Native Mobile Shell:** Optional Capacitor wrapper for dedicated iOS/Android background audio session persistence if browser backgrounding proves limiting on specific devices.
