@@ -1,18 +1,21 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { OUTPUT_PROFILE_UI_OPTIONS } from '../audio/mastering';
 import type { SpeechVoiceOption } from '../engine/speech';
-import type { SessionSettings } from '../types/settings';
+import type { AudioOutputProfile, SessionSettings } from '../types/settings';
 
 interface AdvancedSettingsProps {
   settings: SessionSettings;
   voices: SpeechVoiceOption[];
   onUpdate: (patch: Partial<SessionSettings>) => void;
+  onPreviewOutputProfile?: (profile: AudioOutputProfile) => void;
 }
 
 export function AdvancedSettings({
   settings,
   voices,
   onUpdate,
+  onPreviewOutputProfile,
 }: AdvancedSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -208,6 +211,46 @@ export function AdvancedSettings({
                 </select>
               </div>
             )}
+
+            <div className="border-t border-[#2B323B] pt-3.5">
+              <span className="block text-sm font-medium text-[#F3EFE6]">
+                Audio output
+              </span>
+              <div
+                className="mt-1.5 grid grid-cols-3 gap-1.5"
+                role="group"
+                aria-label="Audio output profile"
+              >
+                {OUTPUT_PROFILE_UI_OPTIONS.map((option) => {
+                  const active = settings.outputProfile === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        onUpdate({ outputProfile: option.id });
+                        onPreviewOutputProfile?.(option.id);
+                      }}
+                      className={`min-h-[42px] rounded-xl border px-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4] ${
+                        active
+                          ? 'border-[#4FB3A4] bg-[#4FB3A4]/20 text-[#4FB3A4]'
+                          : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-[#9CA3AE]">
+                {
+                  OUTPUT_PROFILE_UI_OPTIONS.find(
+                    (o) => o.id === settings.outputProfile,
+                  )?.description
+                }
+              </p>
+            </div>
         </div>
       )}
     </section>

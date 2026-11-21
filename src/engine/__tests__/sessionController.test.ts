@@ -40,7 +40,7 @@ class FakeSynth implements SynthEngine {
   melodyVolume = 0.75;
   voiceVolume = 0.65;
   ambience: AmbienceMode = 'warm-room';
-  outputProfile: AudioOutputProfile = 'phone-speaker';
+  outputProfile: AudioOutputProfile = 'auto';
   chords: RecordedChord[] = [];
   releaseAllCount = 0;
   private stateListeners = new Set<(s: string) => void>();
@@ -701,35 +701,35 @@ describe('SessionController state machine & scheduler', () => {
     expect(seventhRun.announcer.spoken[0].text).toBe('Two minor seven');
   });
 
-  it('supports Left-to-Right, SATB choir, Random voice-led stereo, and Stereo OFF centered mono', () => {
-    // Default: Stereo ON + Left to right ([-0.84, -0.28, 0.28, 0.84] low to high)
+  it('supports SATB choir (default), Left-to-Right, Random voice-led stereo, and Stereo OFF centered mono', () => {
+    // Default: Stereo ON + SATB choir ([0.24, -0.24, 0.72, -0.72] for [B, T, A, S])
     expect(DEFAULT_SETTINGS.voicePanning).toBe(true);
-    expect(DEFAULT_SETTINGS.voicePanningMode).toBe('left-to-right');
+    expect(DEFAULT_SETTINGS.voicePanningMode).toBe('satb');
 
-    const ltrRun = createHarness({
+    const defaultSatbRun = createHarness({
       allowedChords: ['I', 'IV'],
       progressionLength: 2,
       questionRepeats: 1,
       keyOrientation: 'none',
     });
-    ltrRun.controller.start();
-    expect(ltrRun.synth.chords[0].notes.map((n) => n.pan)).toEqual([
-      -0.84, -0.28, 0.28, 0.84,
+    defaultSatbRun.controller.start();
+    expect(defaultSatbRun.synth.chords[0].notes.map((n) => n.pan)).toEqual([
+      0.24, -0.24, 0.72, -0.72,
     ]);
 
-    // SATB choir section panning (independent of sound preset)
-    const satbRun = createHarness({
+    // Left-to-right panning
+    const ltrRun = createHarness({
       allowedChords: ['I', 'IV'],
       progressionLength: 2,
       questionRepeats: 1,
       keyOrientation: 'none',
       timbre: 'velvet-pad',
       voicePanning: true,
-      voicePanningMode: 'satb',
+      voicePanningMode: 'left-to-right',
     });
-    satbRun.controller.start();
-    expect(satbRun.synth.chords[0].notes.map((n) => n.pan)).toEqual([
-      0.24, -0.24, 0.72, -0.72,
+    ltrRun.controller.start();
+    expect(ltrRun.synth.chords[0].notes.map((n) => n.pan)).toEqual([
+      -0.84, -0.28, 0.28, 0.84,
     ]);
 
     // Stereo OFF: true centered mono (pan = 0 on every voice)
@@ -1120,16 +1120,22 @@ describe('SessionController state machine & scheduler', () => {
 
   it('propagates audio output profile on start and live updateSettings', () => {
     const { controller, synth } = createHarness({
-      outputProfile: 'phone-speaker',
+      outputProfile: 'auto',
     });
 
     controller.start();
-    expect(synth.outputProfile).toBe('phone-speaker');
+    expect(synth.outputProfile).toBe('auto');
 
     controller.updateSettings({
       ...DEFAULT_SETTINGS,
       outputProfile: 'headphones',
     });
     expect(synth.outputProfile).toBe('headphones');
+
+    controller.updateSettings({
+      ...DEFAULT_SETTINGS,
+      outputProfile: 'phone-speaker',
+    });
+    expect(synth.outputProfile).toBe('phone-speaker');
   });
 });

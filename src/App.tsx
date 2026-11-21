@@ -105,6 +105,9 @@ export function App() {
         settings={settings}
         voices={voices}
         onUpdate={updateSettings}
+        onPreviewOutputProfile={(profile) =>
+          previewSound(undefined, undefined, undefined, undefined, profile)
+        }
       />
     </main>
   );

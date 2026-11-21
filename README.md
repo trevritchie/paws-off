@@ -10,7 +10,7 @@ Live app: https://trevritchie.github.io/paws-off/
 - **4-Voice SATB Inversions**: Viterbi voice-led SATB voicings with global inversion defaults, progressive-disclosure per-chord overrides, and 5 display/spoken notation modes (`Inversion name`, `Figured bass`, `Bass tone`, `Scale degree`, `Solfege`).
 - **Counterpoint Melody Overlay**: Optional top-line melody (`Melody over chords`) with `Allow tensions`, a dedicated melody volume slider, and auto-paired melody sounds (with full manual override).
 - **18 Sound Presets & Mixing**: 8 pure Web Audio synths (`Velvet Pad`, `Felt Piano`, `Warm Rhodes`, `Soft Vibes`, `Wurlitzer EP`, `Juno Poly`, `Jazz Organ`, `Glass Celesta`), sampled+formant `SATB Choir`, and 9 sampled acoustic instruments (`Grand Piano`, `Warm Strings`, `Chamber Cello`, `French Horn`, `Concert Harp`, `Nylon Guitar`, `Clean Guitar`, `Harmonium`, `Pipe Organ`), plus stereo voice panning, studio early-reflection reverb, and a tonic drone.
-- **Mobile-Mastered Playback**: Native Web Audio mastering chain with `Phone Speaker` (cone-protection high-pass, psychoacoustic missing-fundamental bass exciter, `4x` soft-clipper, and broadcast lookahead limiter) and `Headphones` output profiles.
+- **Mobile-Mastered Playback**: Native Web Audio mastering chain with best-effort `Auto` output detection (and manual `Phone Speaker` / `Headphones` override in Advanced settings) featuring a cone-protection high-pass, psychoacoustic missing-fundamental bass exciter, `4x` soft-clipper, and broadcast lookahead limiter.
 - **Zero-Latency Recorded Voice**: 73 pre-rendered, broadcast-mastered voice clips with 2-clip inversion chaining and automatic Web Speech API fallback.
 - **Hands-Free & Pocket Ready**: Lock-screen Media Session controls (play, stop, replay, skip), Screen Wake Lock, silent audio keep-alive, and Web Worker lookahead timing.
 - **Key Rotation & Tempo Control**: Stay in a fixed key or auto-rotate every N questions, and independently tune question BPM, answer-reveal BPM, thinking time, and repeats.
@@ -25,7 +25,7 @@ npm run dev
 ## Testing & Building
 
 ```bash
-npm test          # Run Vitest unit & component tests (64 tests)
+npm test          # Run Vitest unit & component tests (65 tests)
 npm run build     # Type-check and build production bundle to dist/
 ```
 

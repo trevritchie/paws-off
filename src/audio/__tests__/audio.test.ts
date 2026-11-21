@@ -14,6 +14,7 @@ import {
   type InversionNotation,
   LEGACY_SETTINGS_STORAGE_KEY,
   loadSettings,
+  type ResolvedOutputProfile,
   sanitizeSettings,
   saveSettings,
 } from '../../types/settings';
@@ -31,6 +32,7 @@ import {
   createTransparentSoftClipCurve,
   MasterOutputChain,
   OUTPUT_PROFILE_CONFIGS,
+  resolveAutoOutputProfile,
 } from '../mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from '../reverb';
 import {
@@ -639,7 +641,7 @@ describe('meditative instruments & ambience', () => {
     expect(fresh.timbre).toBe('velvet-pad');
     expect(fresh.ambience).toBe('warm-room');
     expect(fresh.voicePanning).toBe(true);
-    expect(fresh.voicePanningMode).toBe('left-to-right');
+    expect(fresh.voicePanningMode).toBe('satb');
     expect(fresh.announceTriadQuality).toBe(false);
     expect(fresh.playChordsBehindAnswer).toBe(true);
     expect(fresh.playFinalReplayAfterAnswer).toBe(true);
@@ -1117,7 +1119,7 @@ describe('meditative instruments & ambience', () => {
 
 describe('mastering chain, studio reverb & expanded wavetable synths', () => {
   it('generates a strictly linear-to-tanh transparent soft-clip curve and DC-free asymmetric bass exciter curve', () => {
-    const clipCurve = createTransparentSoftClipCurve(0.72, 0.94, 2049);
+    const clipCurve = createTransparentSoftClipCurve(0.78, 0.92, 2049);
     expect(clipCurve).toHaveLength(2049);
     const mid = 1024;
     expect(clipCurve[mid]).toBeCloseTo(0, 6);
@@ -1125,8 +1127,8 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
     for (let i = 0; i < clipCurve.length; i++) {
       const x = (i * 2) / (clipCurve.length - 1) - 1;
       const y = clipCurve[i];
-      expect(Math.abs(y)).toBeLessThanOrEqual(0.94 + 1e-6);
-      if (Math.abs(x) <= 0.72) {
+      expect(Math.abs(y)).toBeLessThanOrEqual(0.92 + 1e-6);
+      if (Math.abs(x) <= 0.78) {
         expect(y).toBeCloseTo(x, 5);
       }
       // Odd symmetry & monotonicity
@@ -1136,7 +1138,7 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
       }
     }
 
-    const exciterCurve = createBassExciterCurve(2.6, 0.22, 1025);
+    const exciterCurve = createBassExciterCurve(1.85, 0.22, 1025);
     expect(exciterCurve).toHaveLength(1025);
     // Exact zero at x=0 (no DC offset)
     expect(exciterCurve[512]).toBeCloseTo(0, 6);
@@ -1226,17 +1228,18 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
     expect(shapers[0].oversample).toBe('4x');
     expect(shapers[1].oversample).toBe('4x');
     expect(compressors).toHaveLength(2);
-    // Safety brickwall limiter
-    expect(compressors[1].threshold.value).toBe(-1.2);
+    // Safety brickwall limiter + -1.0 dBFS output trim
+    expect(compressors[1].threshold.value).toBe(-1.8);
     expect(compressors[1].ratio.value).toBe(20);
     expect(compressors[1].knee.value).toBe(0);
-    // Sub-bass HPF starts at Phone Speaker 95 Hz
+    expect(chain.output.gain.value).toBe(0.89);
+    // Sub-bass HPF starts at Phone Speaker 105 Hz
     const subHpf = filters[1];
     expect(subHpf.frequency.value).toBe(
       OUTPUT_PROFILE_CONFIGS['phone-speaker'].subHpfHz,
     );
 
-    chain.setProfile('headphones' as AudioOutputProfile, 5.5);
+    chain.setProfile('headphones' as ResolvedOutputProfile, 5.5);
     expect(subHpf.frequency.setTargetAtTime).toHaveBeenCalledWith(30, 5.5, 0.03);
     expect(chain.voicePresenceEq.gain.setTargetAtTime).toHaveBeenCalledWith(
       0,
@@ -1245,14 +1248,43 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
     );
 
     chain.setProfile('phone-speaker', 6.0);
-    expect(subHpf.frequency.setTargetAtTime).toHaveBeenCalledWith(95, 6.0, 0.03);
+    expect(subHpf.frequency.setTargetAtTime).toHaveBeenCalledWith(105, 6.0, 0.03);
     expect(chain.voicePresenceEq.gain.setTargetAtTime).toHaveBeenCalledWith(
-      2.5,
+      2.2,
       6.0,
       0.03,
     );
 
     chain.dispose();
+  });
+
+  it('resolves Auto output profile from outputLatency and device form factor', () => {
+    expect(
+      resolveAutoOutputProfile({
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+        coarsePointer: true,
+        outputLatency: 0.02,
+      }),
+    ).toBe('phone-speaker');
+
+    // Bluetooth wireless latency (>= 100ms) switches mobile to Headphones profile
+    expect(
+      resolveAutoOutputProfile({
+        userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9)',
+        coarsePointer: true,
+        outputLatency: 0.16,
+      }),
+    ).toBe('headphones');
+
+    // Desktop browser defaults to Headphones full-range tuning
+    expect(
+      resolveAutoOutputProfile({
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+        coarsePointer: false,
+        isMobileHint: false,
+        outputLatency: 0.015,
+      }),
+    ).toBe('headphones');
   });
 
   it('builds stereo-decorrelated early-reflection impulse responses with clean pre-delay', () => {
@@ -1288,12 +1320,15 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
   });
 
   it('sanitizes outputProfile and renders all 4 new wavetable instruments cleanly', async () => {
-    expect(sanitizeSettings({}).outputProfile).toBe('phone-speaker');
+    expect(sanitizeSettings({}).outputProfile).toBe('auto');
+    expect(sanitizeSettings({ outputProfile: 'phone-speaker' }).outputProfile).toBe(
+      'phone-speaker',
+    );
     expect(sanitizeSettings({ outputProfile: 'headphones' }).outputProfile).toBe(
       'headphones',
     );
-    expect(sanitizeSettings({ outputProfile: 'speaker' }).outputProfile).toBe(
-      'phone-speaker',
+    expect(sanitizeSettings({ outputProfile: 'speaker' as AudioOutputProfile }).outputProfile).toBe(
+      'auto',
     );
 
     for (const id of [

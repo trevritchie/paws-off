@@ -153,18 +153,18 @@ python3 scripts/process_samples.py --pack chamber-cello --src-root ../Movemental
 
 ### 3.1 Native Mastering Chain (`src/audio/mastering.ts`)
 
-Because Paws Off runs unattended in a pocket on mobile browsers, `MasterOutputChain` uses 100% native Web Audio nodes (zero `AudioWorklet` 128-sample render thread risk under iOS background throttling) to lift integrated output loudness from raw `-22..-27 LUFS` to broadcast-competitive **~-14 to -15 LUFS** without clipping or speaker buzz:
+Because Paws Off runs unattended in a pocket on mobile browsers, `MasterOutputChain` uses 100% native Web Audio nodes (zero `AudioWorklet` 128-sample render thread risk under iOS background throttling) to lift integrated output loudness cleanly without clipping or speaker buzz. The default `'auto'` setting performs best-effort output detection (Bluetooth `outputLatency >= 100 ms`, exposed `audiooutput` labels without requesting mic permissions, and mobile vs. desktop form factor) and can be manually overridden in **Advanced settings**:
 
-| Stage | `Phone Speaker` (default) | `Headphones` | Notes |
+| Stage | `Phone Speaker` | `Headphones` | Notes |
 | --- | --- | --- | --- |
-| Sub-bass High-Pass | `95 Hz` (`Q = 0.707`) | `30 Hz` (`Q = 0.707`) | Protects small phone drivers from sub-bass excursion waste |
-| Parallel Bass Exciter | `0.38` mix (`140-620 Hz`, `4x` asymmetric shaper) | `0.0` (bypassed) | Synthesizes 2nd/3rd harmonics pre-compressor for missing-fundamental pitch clarity |
-| Presence & Air EQ | `+1.8 dB @ 2.4 kHz`, `-1.0 dB @ 7.5 kHz` | `0 dB` | Improves small-speaker intelligibility without piercing high-frequency fatigue |
-| Voice Presence EQ | `+2.5 dB @ 2.8 kHz` (`Q = 1.1`) | `0 dB` | Restores spoken-answer articulation on phone speakers |
-| Loudness Drive | `2.15` (`+6.6 dB`) | `1.55` (`+3.8 dB`) | Calibrates full summed mix evenly without changing relative slider balances |
-| Glue Compressor | `-14 dB`, `2.8:1`, `15 ms / 180 ms` | `-12 dB`, `2.2:1`, `22 ms / 220 ms` | Cohesive musical bus density |
-| Transparent Soft Clipper | Linear `<= 0.72`, C1 `tanh` to `0.94`, `4x` oversample | Same | Zero coloration below `-2.85 dBFS`, smooth rounding on transient peaks |
-| Brickwall Safety Limiter & Trim | `-1.2 dB`, `20:1`, `1 ms / 80 ms`, trim `0.94` (`-0.54 dBFS`) | Same | Leverages native ~6 ms lookahead and preserves inter-sample DAC headroom |
+| Sub-bass High-Pass | `105 Hz` (`Q = 0.707`) | `30 Hz` (`Q = 0.707`) | Protects small phone drivers from sub-bass excursion waste |
+| Parallel Bass Exciter | `0.26` mix (`140-440 Hz`, `4x` asymmetric shaper) | `0.0` (bypassed) | Synthesizes warm 2nd harmonics pre-compressor for missing-fundamental pitch clarity |
+| Presence & Air EQ | `+1.2 dB @ 2.4 kHz`, `-1.0 dB @ 7.5 kHz` | `0 dB` | Improves small-speaker intelligibility without piercing high-frequency fatigue |
+| Voice Presence EQ | `+2.2 dB @ 2.8 kHz` (`Q = 1.1`) | `0 dB` | Restores spoken-answer articulation on phone speakers |
+| Loudness Drive | `1.68` (`+4.5 dB`) | `1.45` (`+3.2 dB`) | Calibrates full summed mix evenly without changing relative slider balances |
+| Glue Compressor | `-15 dB`, `2.4:1`, `18 ms / 200 ms` | `-13 dB`, `2.0:1`, `22 ms / 220 ms` | Cohesive musical bus density without pumping |
+| Transparent Soft Clipper | Linear `<= 0.78`, C1 `tanh` to `0.92`, `4x` oversample | Same | Zero coloration below `-2.16 dBFS`, smooth rounding on transient peaks |
+| Brickwall Safety Limiter & Trim | `-1.8 dB`, `20:1`, `1 ms / 80 ms`, trim `0.89` (`-1.0 dBFS`) | Same | Leverages native ~6 ms lookahead and preserves inter-sample DAC headroom |
 
 ### 3.2 Pure Web Audio Wavetables (`src/audio/instruments/wavetables.ts`)
 

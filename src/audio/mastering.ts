@@ -1,7 +1,10 @@
-import type { AudioOutputProfile } from '../types/settings';
+import type {
+  AudioOutputProfile,
+  ResolvedOutputProfile,
+} from '../types/settings';
 
 export interface OutputProfileConfig {
-  id: AudioOutputProfile;
+  id: ResolvedOutputProfile;
   label: string;
   description: string;
   subHpfHz: number;
@@ -18,24 +21,24 @@ export interface OutputProfileConfig {
 }
 
 export const OUTPUT_PROFILE_CONFIGS: Record<
-  AudioOutputProfile,
+  ResolvedOutputProfile,
   OutputProfileConfig
 > = {
   'phone-speaker': {
     id: 'phone-speaker',
     label: 'Phone Speaker',
-    description: 'Loud, distortion-free mix with clear bass on small speakers',
-    subHpfHz: 95,
-    bassExciterMix: 0.38,
-    presenceGainDb: 1.8,
+    description: 'Clear bass and safe loudness for built-in phone speakers',
+    subHpfHz: 105,
+    bassExciterMix: 0.26,
+    presenceGainDb: 1.2,
     airShelfGainDb: -1.0,
-    voicePresenceGainDb: 2.5,
-    loudnessDrive: 2.15,
-    glueThresholdDb: -14,
-    glueKneeDb: 12,
-    glueRatio: 2.8,
-    glueAttackSec: 0.015,
-    glueReleaseSec: 0.18,
+    voicePresenceGainDb: 2.2,
+    loudnessDrive: 1.68,
+    glueThresholdDb: -15,
+    glueKneeDb: 14,
+    glueRatio: 2.4,
+    glueAttackSec: 0.018,
+    glueReleaseSec: 0.2,
   },
   headphones: {
     id: 'headphones',
@@ -46,19 +49,123 @@ export const OUTPUT_PROFILE_CONFIGS: Record<
     presenceGainDb: 0,
     airShelfGainDb: 0,
     voicePresenceGainDb: 0,
-    loudnessDrive: 1.55,
-    glueThresholdDb: -12,
+    loudnessDrive: 1.45,
+    glueThresholdDb: -13,
     glueKneeDb: 14,
-    glueRatio: 2.2,
+    glueRatio: 2.0,
     glueAttackSec: 0.022,
     glueReleaseSec: 0.22,
   },
 };
 
-export const OUTPUT_PROFILE_OPTIONS: readonly OutputProfileConfig[] = [
-  OUTPUT_PROFILE_CONFIGS['phone-speaker'],
-  OUTPUT_PROFILE_CONFIGS.headphones,
+export interface OutputProfileUiOption {
+  id: AudioOutputProfile;
+  label: string;
+  description: string;
+}
+
+export const OUTPUT_PROFILE_UI_OPTIONS: readonly OutputProfileUiOption[] = [
+  {
+    id: 'auto',
+    label: 'Auto',
+    description:
+      'Detects Bluetooth and desktop outputs; uses Phone Speaker on mobile',
+  },
+  {
+    id: 'phone-speaker',
+    label: 'Phone Speaker',
+    description: OUTPUT_PROFILE_CONFIGS['phone-speaker'].description,
+  },
+  {
+    id: 'headphones',
+    label: 'Headphones',
+    description: OUTPUT_PROFILE_CONFIGS.headphones.description,
+  },
 ];
+
+export interface AutoDetectEnvironment {
+  outputLatency?: number;
+  userAgent?: string;
+  isMobileHint?: boolean;
+  coarsePointer?: boolean;
+}
+
+const EXTERNAL_AUDIO_LABEL_RE =
+  /headphone|headset|airpod|buds|bluetooth|earbud|beats|bose|sony|sennheiser|aux|external|usb|hdmi/i;
+
+/**
+ * Best-effort synchronous resolution of `'auto'` output mode using output
+ * latency (Bluetooth >= 100 ms) and device form factor without prompting for
+ * microphone permissions.
+ */
+export function resolveAutoOutputProfile(
+  env: AutoDetectEnvironment = {},
+): ResolvedOutputProfile {
+  const outputLatency = env.outputLatency;
+  if (
+    typeof outputLatency === 'number' &&
+    Number.isFinite(outputLatency) &&
+    outputLatency >= 0.1
+  ) {
+    return 'headphones';
+  }
+
+  const nav =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & { userAgentData?: { mobile?: boolean } })
+      : null;
+  const userAgent = env.userAgent ?? nav?.userAgent ?? '';
+  const isMobileHint = env.isMobileHint ?? nav?.userAgentData?.mobile;
+  const coarsePointer =
+    env.coarsePointer ??
+    (typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false);
+
+  const isMobile =
+    isMobileHint === true ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) ||
+    coarsePointer === true;
+
+  return isMobile ? 'phone-speaker' : 'headphones';
+}
+
+/**
+ * Queries exposed audiooutput labels (when already available without calling
+ * getUserMedia) plus AudioContext outputLatency to pick the best profile.
+ */
+export async function detectOutputProfile(
+  ctx: AudioContext | null,
+): Promise<ResolvedOutputProfile> {
+  const ctxWithLatency = ctx as (AudioContext & { outputLatency?: number }) | null;
+  const baseEnv: AutoDetectEnvironment = {
+    outputLatency: ctxWithLatency?.outputLatency,
+  };
+
+  if (
+    typeof navigator !== 'undefined' &&
+    navigator.mediaDevices &&
+    typeof navigator.mediaDevices.enumerateDevices === 'function'
+  ) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasExternalOutput = devices.some(
+        (d) =>
+          d.kind === 'audiooutput' &&
+          typeof d.label === 'string' &&
+          d.label.length > 0 &&
+          EXTERNAL_AUDIO_LABEL_RE.test(d.label),
+      );
+      if (hasExternalOutput) {
+        return 'headphones';
+      }
+    } catch {
+      // Ignore restricted mediaDevices errors and fall back to heuristics.
+    }
+  }
+
+  return resolveAutoOutputProfile(baseEnv);
+}
 
 /**
  * Generates an odd-symmetric soft-clipping transfer curve that is strictly
@@ -66,8 +173,8 @@ export const OUTPUT_PROFILE_OPTIONS: readonly OutputProfileConfig[] = [
  * via tanh saturation to asymptotically approach `ceiling`.
  */
 export function createTransparentSoftClipCurve(
-  knee = 0.72,
-  ceiling = 0.94,
+  knee = 0.78,
+  ceiling = 0.92,
   length = 2048,
 ): Float32Array<ArrayBuffer> {
   const curve = new Float32Array(new ArrayBuffer(length * 4));
@@ -88,12 +195,12 @@ export function createTransparentSoftClipCurve(
 }
 
 /**
- * Generates an asymmetric harmonic saturator curve with zero DC offset at x=0
- * so low frequencies produce both 2nd and 3rd harmonics for missing-fundamental
- * bass perception on small phone speakers.
+ * Generates a gentle asymmetric harmonic saturator curve with zero DC offset at
+ * x=0 so low frequencies produce warm 2nd harmonics for missing-fundamental
+ * bass perception without buzzing sustained pads.
  */
 export function createBassExciterCurve(
-  drive = 2.6,
+  drive = 1.85,
   asymmetry = 0.22,
   length = 1024,
 ): Float32Array<ArrayBuffer> {
@@ -137,7 +244,7 @@ export class MasterOutputChain {
 
   constructor(
     ctx: AudioContext,
-    initialProfile: AudioOutputProfile = 'phone-speaker',
+    initialProfile: ResolvedOutputProfile = 'phone-speaker',
   ) {
     this.ctx = ctx;
     const cfg = OUTPUT_PROFILE_CONFIGS[initialProfile];
@@ -167,7 +274,7 @@ export class MasterOutputChain {
     bassLpf.Q.value = 0.707;
 
     const bassDrive = ctx.createGain();
-    bassDrive.gain.value = 1.35;
+    bassDrive.gain.value = 1.0;
 
     const bassShaper: AudioNode =
       typeof ctx.createWaveShaper === 'function'
@@ -190,7 +297,7 @@ export class MasterOutputChain {
 
     const bassTopLpf = ctx.createBiquadFilter();
     bassTopLpf.type = 'lowpass';
-    bassTopLpf.frequency.value = 620;
+    bassTopLpf.frequency.value = 440;
     bassTopLpf.Q.value = 0.707;
 
     const bassExciterMix = ctx.createGain();
@@ -221,7 +328,7 @@ export class MasterOutputChain {
       typeof ctx.createWaveShaper === 'function'
         ? (() => {
             const ws = ctx.createWaveShaper();
-            ws.curve = createTransparentSoftClipCurve(0.72, 0.94);
+            ws.curve = createTransparentSoftClipCurve(0.78, 0.92);
             ws.oversample = '4x';
             return ws;
           })()
@@ -232,14 +339,14 @@ export class MasterOutputChain {
           })();
 
     const safetyLimiter = ctx.createDynamicsCompressor();
-    safetyLimiter.threshold.value = -1.2;
+    safetyLimiter.threshold.value = -1.8;
     safetyLimiter.knee.value = 0;
     safetyLimiter.ratio.value = 20;
     safetyLimiter.attack.value = 0.001;
     safetyLimiter.release.value = 0.08;
 
     const outputTrim = ctx.createGain();
-    outputTrim.gain.value = 0.94;
+    outputTrim.gain.value = 0.89;
 
     voicePresenceEq.connect(input);
 
@@ -292,7 +399,7 @@ export class MasterOutputChain {
     ];
   }
 
-  setProfile(profile: AudioOutputProfile, atTime?: number): void {
+  setProfile(profile: ResolvedOutputProfile, atTime?: number): void {
     const cfg = OUTPUT_PROFILE_CONFIGS[profile];
     const t = Math.max(this.ctx.currentTime, atTime ?? this.ctx.currentTime);
     const tau = 0.03;

@@ -3,6 +3,7 @@ import { midiToFreq } from '../music/voicing';
 import type {
   AmbienceMode,
   AudioOutputProfile,
+  ResolvedOutputProfile,
   TimbreId,
 } from '../types/settings';
 import { ChoirSampleBank } from './choirSamples';
@@ -12,7 +13,11 @@ import {
   createVoiceSharedResources,
   type VoiceSharedResources,
 } from './instruments/types';
-import { MasterOutputChain } from './mastering';
+import {
+  detectOutputProfile,
+  MasterOutputChain,
+  resolveAutoOutputProfile,
+} from './mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from './reverb';
 import { AcousticSampleBank, isAcousticSampleTimbre } from './sampleBank';
 import { chordSliderToGain, melodySliderToGain, voiceSliderToGain } from './volume';
@@ -77,8 +82,33 @@ export class PolySynth implements SynthEngine {
   private melodyVolume = 0.75;
   private voiceVolume = 0.65;
   private ambience: AmbienceMode = 'warm-room';
-  private outputProfile: AudioOutputProfile = 'phone-speaker';
+  private outputProfile: AudioOutputProfile = 'auto';
+  private resolvedOutputProfile: ResolvedOutputProfile = 'phone-speaker';
   private stateChangeBound: (() => void) | null = null;
+  private deviceChangeBound: (() => void) | null = null;
+
+  private resolveSyncProfile(ctx: AudioContext): ResolvedOutputProfile {
+    if (this.outputProfile !== 'auto') {
+      return this.outputProfile;
+    }
+    const latency = (ctx as AudioContext & { outputLatency?: number })
+      .outputLatency;
+    return resolveAutoOutputProfile({ outputLatency: latency });
+  }
+
+  private resolveAndApplyOutputProfile(ctx: AudioContext): void {
+    const syncResolved = this.resolveSyncProfile(ctx);
+    this.resolvedOutputProfile = syncResolved;
+    this.masterChain?.setProfile(syncResolved, ctx.currentTime);
+
+    if (this.outputProfile === 'auto') {
+      void detectOutputProfile(ctx).then((asyncResolved) => {
+        if (this.ctx !== ctx || this.outputProfile !== 'auto') return;
+        this.resolvedOutputProfile = asyncResolved;
+        this.masterChain?.setProfile(asyncResolved, ctx.currentTime);
+      });
+    }
+  }
 
   private getOrCreateIr(
     ctx: AudioContext,
@@ -156,7 +186,9 @@ export class PolySynth implements SynthEngine {
     const voiceBus = ctx.createGain();
     voiceBus.gain.value = voiceSliderToGain(this.voiceVolume);
 
-    const masterChain = new MasterOutputChain(ctx, this.outputProfile);
+    const initialResolved = this.resolveSyncProfile(ctx);
+    this.resolvedOutputProfile = initialResolved;
+    const masterChain = new MasterOutputChain(ctx, initialResolved);
 
     chordBus.connect(chordLevelGain);
     chordLevelGain.connect(warmthFilter);
@@ -176,11 +208,32 @@ export class PolySynth implements SynthEngine {
 
     const onStateChange = () => {
       const state = ctx.state as string;
+      if (state === 'running' && this.outputProfile === 'auto') {
+        this.resolveAndApplyOutputProfile(ctx);
+      }
       for (const listener of this.stateListeners) {
         listener(state);
       }
     };
     ctx.addEventListener('statechange', onStateChange);
+
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.addEventListener === 'function'
+    ) {
+      const onDeviceChange = () => {
+        if (this.ctx === ctx && this.outputProfile === 'auto') {
+          this.resolveAndApplyOutputProfile(ctx);
+        }
+      };
+      try {
+        navigator.mediaDevices.addEventListener('devicechange', onDeviceChange);
+        this.deviceChangeBound = onDeviceChange;
+      } catch {
+        // Ignore restricted mediaDevices environments.
+      }
+    }
 
     this.ctx = ctx;
     this.chordBus = chordBus;
@@ -210,6 +263,10 @@ export class PolySynth implements SynthEngine {
     ];
     this.stateChangeBound = onStateChange;
 
+    if (this.outputProfile === 'auto') {
+      this.resolveAndApplyOutputProfile(ctx);
+    }
+
     return ctx;
   }
 
@@ -222,6 +279,9 @@ export class PolySynth implements SynthEngine {
       } catch {
         // Browsers may reject if called outside gesture; handled on state checks.
       }
+    }
+    if (this.outputProfile === 'auto') {
+      this.resolveAndApplyOutputProfile(ctx);
     }
   }
 
@@ -326,7 +386,11 @@ export class PolySynth implements SynthEngine {
   setOutputProfile(profile: AudioOutputProfile): void {
     this.outputProfile = profile;
     if (!this.ctx || !this.masterChain) return;
-    this.masterChain.setProfile(profile, this.ctx.currentTime);
+    this.resolveAndApplyOutputProfile(this.ctx);
+  }
+
+  getResolvedOutputProfile(): ResolvedOutputProfile {
+    return this.resolvedOutputProfile;
   }
 
   async preloadTimbre(timbre: TimbreId): Promise<void> {
@@ -567,6 +631,23 @@ export class PolySynth implements SynthEngine {
     if (this.ctx && this.stateChangeBound) {
       this.ctx.removeEventListener('statechange', this.stateChangeBound);
     }
+    this.stateChangeBound = null;
+    if (
+      this.deviceChangeBound &&
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.removeEventListener === 'function'
+    ) {
+      try {
+        navigator.mediaDevices.removeEventListener(
+          'devicechange',
+          this.deviceChangeBound,
+        );
+      } catch {
+        // Ignore
+      }
+    }
+    this.deviceChangeBound = null;
     if (this.ctx && this.ctx.state !== 'closed') {
       void this.ctx.close().catch(() => {});
     }

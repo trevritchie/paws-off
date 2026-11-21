@@ -11,7 +11,7 @@
 
 ```bash
 npm run dev       # Local Vite dev server
-npm test          # Vitest suite (4 suites, 64 tests)
+npm test          # Vitest suite (4 suites, 65 tests)
 npm run build     # Type-check (tsc -b) + Vite production build
 ```
 
@@ -29,7 +29,7 @@ python3 scripts/process_samples.py --verify        # Checks all 123 choir + acou
 | --- | --- |
 | `src/types/settings.ts` | `SessionSettings`, `DEFAULT_SETTINGS`, `sanitizeSettings`, `localStorage` key (`paws-off:settings:v2`), `RECOMMENDED_MELODY_TIMBRE`, `getRecommendedMelodyTimbre` |
 | `src/music/` | 23-chord catalog (`chords.ts`), progression & inversion generator (`generator.ts`), 4-voice SATB Viterbi voicer (`voicing.ts`), counterpoint melody generator (`melody.ts`), note scheduler (`arrangement.ts`), stereo panning (`panning.ts`) |
-| `src/audio/` | `PolySynth` signal graph & buses (`synth.ts`), 14 instrument presets (`instruments/`), asset manifests (`sampleBank.ts`, `choirSamples.ts`, `voiceClips.ts`), `drone.ts`, `reverb.ts`, `volume.ts`, `silentKeepAlive.ts` |
+| `src/audio/` | `PolySynth` signal graph & buses (`synth.ts`), `MasterOutputChain` & auto-detection (`mastering.ts`), 18 instrument presets (`instruments/`), asset manifests (`sampleBank.ts`, `choirSamples.ts`, `voiceClips.ts`), `drone.ts`, `reverb.ts`, `volume.ts`, `silentKeepAlive.ts` |
 | `src/engine/` | Hands-free session loop (`sessionController.ts`), recorded + Web Speech announcers (`hybridAnnouncer.ts`, `audioAnnouncer.ts`, `speech.ts`), Media Session & Wake Lock (`pocketManager.ts`), Web Worker clock (`workerTimer.ts`, `timerWorker.ts`) |
 | `src/hooks/` & `src/components/` | `useEarTrainer.ts`, `PocketStage.tsx`, `TransportBar.tsx`, `ChordSelector.tsx`, `CoreControls.tsx`, `SoundAndMix.tsx`, `AdvancedSettings.tsx`, `SwitchRow.tsx` |
 | `scripts/` & `docs/` | Offline TTS & sample mastering scripts. Read `docs/ARCHITECTURE.md` before structural changes and `docs/AUDIO_PIPELINE.md` before modifying voice clips or instrument samples. |

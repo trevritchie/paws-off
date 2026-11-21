@@ -58,7 +58,8 @@ export type TimbreId =
   | 'juno-poly'
   | 'jazz-organ'
   | 'glass-celesta';
-export type AudioOutputProfile = 'phone-speaker' | 'headphones';
+export type ResolvedOutputProfile = 'phone-speaker' | 'headphones';
+export type AudioOutputProfile = 'auto' | ResolvedOutputProfile;
 export type AmbienceMode = 'dry' | 'warm-room' | 'lush-hall';
 export type VoicePanningMode = 'left-to-right' | 'satb' | 'random';
 export type KeyMode = 'fixed' | 'auto-rotate';
@@ -213,10 +214,10 @@ export const DEFAULT_SETTINGS: SessionSettings = {
   playChordsBehindAnswer: true,
   playFinalReplayAfterAnswer: true,
   timbre: 'velvet-pad',
-  outputProfile: 'phone-speaker',
+  outputProfile: 'auto',
   ambience: 'warm-room',
   voicePanning: true,
-  voicePanningMode: 'left-to-right',
+  voicePanningMode: 'satb',
   chordVolume: 0.8,
   voiceVolume: 0.8,
   keyMode: 'auto-rotate',
@@ -394,7 +395,9 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
       : getRecommendedMelodyTimbre(timbre);
 
   const outputProfile: AudioOutputProfile =
-    obj.outputProfile === 'phone-speaker' || obj.outputProfile === 'headphones'
+    obj.outputProfile === 'auto' ||
+    obj.outputProfile === 'phone-speaker' ||
+    obj.outputProfile === 'headphones'
       ? obj.outputProfile
       : DEFAULT_SETTINGS.outputProfile;
 

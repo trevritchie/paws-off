@@ -1,12 +1,10 @@
 import { formatDroneNoteName } from '../audio/drone';
 import { INSTRUMENT_PRESETS } from '../audio/instruments';
-import { OUTPUT_PROFILE_OPTIONS } from '../audio/mastering';
 import { AMBIENCE_OPTIONS } from '../audio/reverb';
 import { getScaleDegreePitchClass } from '../music/chords';
 import {
   getRecommendedMelodyTimbre,
   type AmbienceMode,
-  type AudioOutputProfile,
   type DroneOctave,
   type PitchClass,
   type ScaleDegree,
@@ -35,7 +33,6 @@ interface SoundAndMixProps {
     ambience?: AmbienceMode,
     voicePanning?: boolean,
     voicePanningMode?: VoicePanningMode,
-    outputProfile?: AudioOutputProfile,
   ) => void;
 }
 
@@ -143,52 +140,6 @@ export function SoundAndMix({
         </div>
       </div>
 
-      {/* Audio output profile */}
-      <div>
-        <span className="block text-sm font-semibold text-[#F3EFE6]">
-          Output
-        </span>
-        <div
-          className="mt-2 grid grid-cols-2 gap-1.5"
-          role="group"
-          aria-label="Audio output profile"
-        >
-          {OUTPUT_PROFILE_OPTIONS.map((option) => {
-            const active = settings.outputProfile === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  onUpdate({ outputProfile: option.id });
-                  onPreviewSound(
-                    settings.timbre,
-                    settings.ambience,
-                    settings.voicePanning,
-                    settings.voicePanningMode,
-                    option.id,
-                  );
-                }}
-                className={`min-h-[42px] rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4] ${
-                  active
-                    ? 'border-[#4FB3A4] bg-[#4FB3A4]/20 text-[#4FB3A4]'
-                    : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-1.5 text-xs text-[#9CA3AE]">
-          {
-            OUTPUT_PROFILE_OPTIONS.find((o) => o.id === settings.outputProfile)
-              ?.description
-          }
-        </p>
-      </div>
-
       {/* Stereo voice placement */}
       <div>
         <SwitchRow
@@ -223,8 +174,8 @@ export function SoundAndMix({
           >
             {(
               [
-                { id: 'left-to-right', label: 'Left to right' },
                 { id: 'satb', label: 'SATB choir' },
+                { id: 'left-to-right', label: 'Left to right' },
                 { id: 'random', label: 'Random' },
               ] as const
             ).map((option) => {

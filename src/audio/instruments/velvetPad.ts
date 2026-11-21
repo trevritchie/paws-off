@@ -55,7 +55,7 @@ export function buildVelvetPadVoice({
   sawOsc.frequency.setValueAtTime(freq, t0);
   sawOsc.detune.setValueAtTime(-(baseDetune + voiceSpread), t0);
   const sawGain = ctx.createGain();
-  sawGain.gain.value = isBass ? 0.2 : 0.23;
+  sawGain.gain.value = isBass ? 0.17 : 0.19;
   sawOsc.connect(sawGain);
   sawGain.connect(noteFilter);
   oscs.push(sawOsc);
@@ -99,7 +99,7 @@ export function buildVelvetPadVoice({
 
   noteFilter.connect(envGain);
 
-  envGain.gain.linearRampToValueAtTime(peakGain * 0.84, t0 + attackSec);
+  envGain.gain.linearRampToValueAtTime(peakGain * 0.8, t0 + attackSec);
 
   return {
     oscs,

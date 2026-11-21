@@ -134,16 +134,9 @@ describe('Paws Off App UI', () => {
     expect(
       screen.getByRole('button', { name: /warm room/i }),
     ).toHaveAttribute('aria-pressed', 'true');
-    const outputGroup = screen.getByRole('group', {
-      name: /audio output profile/i,
-    });
-    const outputButtons = within(outputGroup).getAllByRole('button');
-    expect(outputButtons.map((b) => b.textContent)).toEqual([
-      'Phone Speaker',
-      'Headphones',
-    ]);
-    expect(outputButtons[0]).toHaveAttribute('aria-pressed', 'true');
-    expect(outputButtons[1]).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByRole('group', { name: /audio output profile/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('switch', { name: /^stereo$/i }),
     ).toHaveAttribute('aria-checked', 'true');
@@ -152,8 +145,8 @@ describe('Paws Off App UI', () => {
     });
     const stereoButtons = within(stereoGroup).getAllByRole('button');
     expect(stereoButtons.map((b) => b.textContent)).toEqual([
-      'Left to right',
       'SATB choir',
+      'Left to right',
       'Random',
     ]);
     expect(stereoButtons[0]).toHaveAttribute('aria-pressed', 'true');
@@ -285,7 +278,6 @@ describe('Paws Off App UI', () => {
     // Primary Sound & Mix interactions (no need to expand Advanced!)
     await user.click(screen.getByRole('button', { name: /warm rhodes/i }));
     await user.click(screen.getByRole('button', { name: /lush hall/i }));
-    await user.click(screen.getByRole('button', { name: /headphones/i }));
     await user.click(screen.getByRole('button', { name: /^random$/i }));
     await user.click(screen.getByRole('switch', { name: /^enable drone$/i }));
 
@@ -294,12 +286,23 @@ describe('Paws Off App UI', () => {
     await user.click(screen.getByRole('button', { name: 'Scale tone 5' }));
     await user.click(screen.getByRole('button', { name: 'High (+2)' }));
 
-    // Expand streamlined Advanced Settings (Timing & speech only)
+    // Expand Advanced Settings (Timing, speech, and Audio output override)
     await user.click(
       screen.getByRole('button', { name: /advanced settings/i }),
     );
     expect(screen.getByLabelText(/pause between repeats/i)).toBeInTheDocument();
     expect(screen.getByText(/Seven half diminished/i)).toBeInTheDocument();
+    const outputGroup = screen.getByRole('group', {
+      name: /audio output profile/i,
+    });
+    const outputButtons = within(outputGroup).getAllByRole('button');
+    expect(outputButtons.map((b) => b.textContent)).toEqual([
+      'Auto',
+      'Phone Speaker',
+      'Headphones',
+    ]);
+    expect(outputButtons[0]).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(outputGroup).getByRole('button', { name: 'Headphones' }));
 
     // Switch to Minor 7b5 naming & Browser TTS
     await user.click(screen.getByRole('button', { name: 'Minor 7♭5' }));
