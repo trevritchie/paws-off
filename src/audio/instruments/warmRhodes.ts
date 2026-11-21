@@ -1,7 +1,8 @@
-import type {
-  BuiltVoiceNodes,
-  InstrumentPresetMeta,
-  VoiceBuildParams,
+import {
+  keyTrackDecayScale,
+  type BuiltVoiceNodes,
+  type InstrumentPresetMeta,
+  type VoiceBuildParams,
 } from './types';
 
 export const WARM_RHODES_META: InstrumentPresetMeta = {
@@ -19,32 +20,39 @@ export function buildWarmRhodesVoice({
   freq,
   peakGain,
   note,
+  voiceIndex,
   envGain,
   shared,
 }: VoiceBuildParams): BuiltVoiceNodes {
   const isBass = note.role === 'bass';
   const isMelody = note.role === 'melody';
   const attackSec = 0.012;
+  const decayScale = keyTrackDecayScale(note.midi);
+  const velScale = 0.75 + note.velocity * 0.45;
 
   const shaper = ctx.createWaveShaper();
   shaper.curve = shared.warmTubeCurve;
-  shaper.oversample = 'none';
+  shaper.oversample = '4x';
 
   const noteFilter = ctx.createBiquadFilter();
   noteFilter.type = 'lowpass';
   noteFilter.Q.value = 0.65;
-  const startCutoff = isMelody ? 6200 : isBass ? 2000 : 4200;
+  const startCutoff =
+    (isMelody ? 6200 : isBass ? 2000 : 4200) * (0.86 + note.velocity * 0.24);
   const endCutoff = isMelody ? 3200 : isBass ? 1100 : 2000;
   noteFilter.frequency.setValueAtTime(startCutoff, now);
   noteFilter.frequency.setValueAtTime(startCutoff, t0);
-  noteFilter.frequency.exponentialRampToValueAtTime(endCutoff, t0 + 1.3);
+  noteFilter.frequency.exponentialRampToValueAtTime(
+    endCutoff,
+    t0 + 1.3 * decayScale,
+  );
 
-  // Subtle vintage suitcase tremolo
+  // Subtle vintage suitcase tremolo with slight per-voice organic shimmer
   const tremoloGain = ctx.createGain();
   tremoloGain.gain.setValueAtTime(1.0, now);
   const tremoloLfo = ctx.createOscillator();
   tremoloLfo.type = 'sine';
-  tremoloLfo.frequency.setValueAtTime(2.1, t0);
+  tremoloLfo.frequency.setValueAtTime(2.0 + (voiceIndex % 3) * 0.18, t0);
   const tremoloDepth = ctx.createGain();
   tremoloDepth.gain.value = 0.05;
   tremoloLfo.connect(tremoloDepth);
@@ -60,10 +68,11 @@ export function buildWarmRhodesVoice({
   modOsc.frequency.setValueAtTime(freq * 2, t0);
 
   const modGain = ctx.createGain();
-  const initialFmDepth = freq * (isMelody ? 0.56 : isBass ? 0.2 : 0.42);
+  const initialFmDepth =
+    freq * (isMelody ? 0.56 : isBass ? 0.2 : 0.42) * velScale;
   modGain.gain.setValueAtTime(initialFmDepth, now);
   modGain.gain.setValueAtTime(initialFmDepth, t0);
-  modGain.gain.setTargetAtTime(freq * 0.04, t0 + attackSec, 0.14);
+  modGain.gain.setTargetAtTime(freq * 0.04, t0 + attackSec, 0.14 * decayScale);
 
   modOsc.connect(modGain);
   modGain.connect(carrierOsc.frequency);
@@ -87,7 +96,11 @@ export function buildWarmRhodesVoice({
   tremoloGain.connect(envGain);
 
   envGain.gain.linearRampToValueAtTime(peakGain, t0 + attackSec);
-  envGain.gain.setTargetAtTime(peakGain * 0.58, t0 + attackSec, 0.65);
+  envGain.gain.setTargetAtTime(
+    peakGain * 0.58,
+    t0 + attackSec,
+    0.65 * decayScale,
+  );
 
   return {
     oscs: [carrierOsc, modOsc, bodyOsc, tremoloLfo],

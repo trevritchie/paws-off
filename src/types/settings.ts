@@ -53,7 +53,12 @@ export type TimbreId =
   | 'pipe-organ'
   | 'felt-piano'
   | 'warm-rhodes'
-  | 'soft-vibes';
+  | 'soft-vibes'
+  | 'wurlitzer'
+  | 'juno-poly'
+  | 'jazz-organ'
+  | 'glass-celesta';
+export type AudioOutputProfile = 'phone-speaker' | 'headphones';
 export type AmbienceMode = 'dry' | 'warm-room' | 'lush-hall';
 export type VoicePanningMode = 'left-to-right' | 'satb' | 'random';
 export type KeyMode = 'fixed' | 'auto-rotate';
@@ -83,6 +88,7 @@ export interface SessionSettings {
   playChordsBehindAnswer: boolean;
   playFinalReplayAfterAnswer: boolean;
   timbre: TimbreId;
+  outputProfile: AudioOutputProfile;
   ambience: AmbienceMode;
   voicePanning: boolean;
   voicePanningMode: VoicePanningMode;
@@ -177,6 +183,10 @@ export const RECOMMENDED_MELODY_TIMBRE: Record<TimbreId, TimbreId> = {
   'felt-piano': 'soft-vibes',
   'warm-rhodes': 'clean-guitar',
   'soft-vibes': 'warm-rhodes',
+  wurlitzer: 'clean-guitar',
+  'juno-poly': 'glass-celesta',
+  'jazz-organ': 'warm-rhodes',
+  'glass-celesta': 'warm-strings',
 };
 
 export function getRecommendedMelodyTimbre(chordTimbre: TimbreId): TimbreId {
@@ -203,6 +213,7 @@ export const DEFAULT_SETTINGS: SessionSettings = {
   playChordsBehindAnswer: true,
   playFinalReplayAfterAnswer: true,
   timbre: 'velvet-pad',
+  outputProfile: 'phone-speaker',
   ambience: 'warm-room',
   voicePanning: true,
   voicePanningMode: 'left-to-right',
@@ -365,6 +376,10 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
     'felt-piano',
     'warm-rhodes',
     'soft-vibes',
+    'wurlitzer',
+    'juno-poly',
+    'jazz-organ',
+    'glass-celesta',
   ];
   const timbre: TimbreId =
     typeof obj.timbre === 'string' &&
@@ -377,6 +392,11 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
     (validTimbres as readonly string[]).includes(obj.melodyTimbre)
       ? (obj.melodyTimbre as TimbreId)
       : getRecommendedMelodyTimbre(timbre);
+
+  const outputProfile: AudioOutputProfile =
+    obj.outputProfile === 'phone-speaker' || obj.outputProfile === 'headphones'
+      ? obj.outputProfile
+      : DEFAULT_SETTINGS.outputProfile;
 
   const ambience: AmbienceMode =
     obj.ambience === 'dry' ||
@@ -474,6 +494,7 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
         ? obj.playFinalReplayAfterAnswer
         : DEFAULT_SETTINGS.playFinalReplayAfterAnswer,
     timbre,
+    outputProfile,
     ambience,
     voicePanning:
       typeof obj.voicePanning === 'boolean'

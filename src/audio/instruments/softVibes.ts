@@ -1,7 +1,8 @@
-import type {
-  BuiltVoiceNodes,
-  InstrumentPresetMeta,
-  VoiceBuildParams,
+import {
+  keyTrackDecayScale,
+  type BuiltVoiceNodes,
+  type InstrumentPresetMeta,
+  type VoiceBuildParams,
 } from './types';
 
 export const SOFT_VIBES_META: InstrumentPresetMeta = {
@@ -19,12 +20,15 @@ export function buildSoftVibesVoice({
   freq,
   peakGain,
   note,
+  voiceIndex,
   envGain,
   shared,
 }: VoiceBuildParams): BuiltVoiceNodes {
   const isBass = note.role === 'bass';
   const isMelody = note.role === 'melody';
   const attackSec = 0.014;
+  const decayScale = keyTrackDecayScale(note.midi);
+  const velScale = 0.75 + note.velocity * 0.45;
 
   const noteFilter = ctx.createBiquadFilter();
   noteFilter.type = 'lowpass';
@@ -33,12 +37,12 @@ export function buildSoftVibesVoice({
   noteFilter.frequency.setValueAtTime(cutoff, now);
   noteFilter.frequency.setValueAtTime(cutoff, t0);
 
-  // Subtle slow vibraphone motor fan tremolo
+  // Subtle slow vibraphone motor fan tremolo with per-voice rate variation
   const tremoloGain = ctx.createGain();
   tremoloGain.gain.setValueAtTime(1.0, now);
   const tremoloLfo = ctx.createOscillator();
   tremoloLfo.type = 'sine';
-  tremoloLfo.frequency.setValueAtTime(2.8, t0);
+  tremoloLfo.frequency.setValueAtTime(2.65 + (voiceIndex % 4) * 0.14, t0);
   const tremoloDepth = ctx.createGain();
   tremoloDepth.gain.value = 0.07;
   tremoloLfo.connect(tremoloDepth);
@@ -66,21 +70,21 @@ export function buildSoftVibesVoice({
   const secondGain = ctx.createGain();
   secondGain.gain.setValueAtTime(0.06, now);
   secondGain.gain.setValueAtTime(0.06, t0);
-  secondGain.gain.setTargetAtTime(0.01, t0 + attackSec, 0.22);
+  secondGain.gain.setTargetAtTime(0.01, t0 + attackSec, 0.22 * decayScale);
   secondOsc.connect(secondGain);
   secondGain.connect(noteFilter);
   oscs.push(secondOsc);
   auxNodes.push(secondGain);
 
-  // Authentic vibraphone tuned bar 4th overtone (3.98x)
+  // Authentic vibraphone tuned bar 4th overtone (3.98x) scaled by velocity
   const barOsc = ctx.createOscillator();
   barOsc.type = 'sine';
   barOsc.frequency.setValueAtTime(freq * 3.98, t0);
   const barGain = ctx.createGain();
-  const barInit = isMelody ? 0.14 : isBass ? 0.04 : 0.1;
+  const barInit = (isMelody ? 0.14 : isBass ? 0.04 : 0.1) * velScale;
   barGain.gain.setValueAtTime(barInit, now);
   barGain.gain.setValueAtTime(barInit, t0);
-  barGain.gain.setTargetAtTime(0.0005, t0 + attackSec, 0.09);
+  barGain.gain.setTargetAtTime(0.0005, t0 + attackSec, 0.09 * decayScale);
   barOsc.connect(barGain);
   barGain.connect(noteFilter);
   oscs.push(barOsc);
@@ -111,7 +115,11 @@ export function buildSoftVibesVoice({
   tremoloGain.connect(envGain);
 
   envGain.gain.linearRampToValueAtTime(peakGain * 0.98, t0 + attackSec);
-  envGain.gain.setTargetAtTime(peakGain * 0.42, t0 + attackSec, 1.05);
+  envGain.gain.setTargetAtTime(
+    peakGain * 0.42,
+    t0 + attackSec,
+    1.05 * decayScale,
+  );
 
   return {
     oscs,

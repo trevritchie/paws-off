@@ -69,7 +69,7 @@ Key behavioral safeguards:
 
 ---
 
-## 4. Web Audio Signal Graph (`src/audio/synth.ts` & `src/audio/instruments/`)
+## 4. Web Audio Signal Graph (`src/audio/synth.ts`, `src/audio/mastering.ts`, `src/audio/instruments/`)
 
 ```text
 Chord voices  --> chordBus  --> chordLevelGain  --> warmthFilter --> presenceShelf --+
@@ -78,13 +78,20 @@ Melody voices --> melodyBus --> melodyLevelGain --------------------------------
                                                                                      |
                    +-----------------------------------------------------------------+
                    v
-          [ dryGain & convolver -> wetGain ] --> compressor --> masterGain --> destination
-                                                     ^
-Voice clips   --> voiceBus --------------------------+
-Tonic drone   --> drone ----------------------------+
+       [ dryGain & reverbHpf (180 Hz) -> convolver -> wetGain ] --> masterInput
+                                                                       ^
+Voice clips   --> voiceBus --> voicePresenceEq ------------------------+
+Tonic drone   --> ChromaticDrone --------------------------------------+
+                                                                       |
+                                                                       v
+   masterInput --> [ subHpf (95/30 Hz) || 4x bassExciter (140-620 Hz) ] --> tonalSum
+               --> presenceEq --> airShelf --> loudnessDrive --> glueCompressor
+               --> 4x softClipper --> safetyLimiter (-1.2 dB, 20:1) --> outputTrim (0.94) --> destination
 ```
 
-- **14 Timbres:** 4 pure Web Audio synths (`velvet-pad`, `felt-piano`, `warm-rhodes`, `soft-vibes`), 1 sampled+formant choir (`satb-choir`), and 9 sampled acoustic instruments (`grand-piano`, `warm-strings`, `chamber-cello`, `french-horn`, `concert-harp`, `nylon-guitar`, `clean-guitar`, `harmonium`, `pipe-organ`).
+- **18 Timbres:** 8 pure Web Audio synths (`velvet-pad`, `felt-piano`, `warm-rhodes`, `soft-vibes`, `wurlitzer`, `juno-poly`, `jazz-organ`, `glass-celesta`), 1 sampled+formant choir (`satb-choir`), and 9 sampled acoustic instruments (`grand-piano`, `warm-strings`, `chamber-cello`, `french-horn`, `concert-harp`, `nylon-guitar`, `clean-guitar`, `harmonium`, `pipe-organ`).
+- **Output Profiles (`AudioOutputProfile`):** `'phone-speaker'` (default: 95 Hz cone-protection high-pass, `4x` missing-fundamental bass exciter, +1.8 dB presence / +2.5 dB voice clarity, +6.6 dB loudness drive) and `'headphones'` (30 Hz extension, flat studio EQ, +3.8 dB drive), both feeding a `4x` transparent linear-to-tanh soft-clipper and 20:1 brickwall safety limiter.
+- **Studio Ambience (`src/audio/reverb.ts`):** `createAmbienceImpulseResponse` synthesizes stereo-decorrelated impulse responses with discrete multi-tap early reflections (`12-52 ms` Warm Room, `24-76 ms` Lush Hall), progressive HF air damping, and an upstream `180 Hz` reverb high-pass filter.
 - **Independent Harmony/Melody Scaling:** `PolySynth.playChord` computes `chordCountScale` from chord voice count separately from `MELODY_COUNT_SCALE` (`0.58`) so enabling melody never ducks chord accompaniment, and `melodyBus` bypasses `warmthFilter` to cut cleanly above the harmony.
 - **Clean Early Cancellation:** `scheduleSingleNote` separates natural note-end release from explicit `releaseAll()` cancellation so stopping or skipping mid-phrase never leaves future scheduled notes playing ghost audio.
 

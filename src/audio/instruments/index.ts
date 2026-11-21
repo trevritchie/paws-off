@@ -1,6 +1,9 @@
 import type { TimbreId } from '../../types/settings';
 import { isAcousticSampleTimbre } from '../sampleBank';
 import { buildFeltPianoVoice, FELT_PIANO_META } from './feltPiano';
+import { buildGlassCelestaVoice, GLASS_CELESTA_META } from './glassCelesta';
+import { buildJazzOrganVoice, JAZZ_ORGAN_META } from './jazzOrgan';
+import { buildJunoPolyVoice, JUNO_POLY_META } from './junoPoly';
 import {
   buildChamberCelloVoice,
   buildCleanGuitarVoice,
@@ -31,6 +34,7 @@ import type {
 } from './types';
 import { buildVelvetPadVoice, VELVET_PAD_META } from './velvetPad';
 import { buildWarmRhodesVoice, WARM_RHODES_META } from './warmRhodes';
+import { buildWurlitzerVoice, WURLITZER_META } from './wurlitzer';
 
 export const INSTRUMENT_PRESETS: readonly InstrumentPresetMeta[] = [
   VELVET_PAD_META,
@@ -47,6 +51,10 @@ export const INSTRUMENT_PRESETS: readonly InstrumentPresetMeta[] = [
   FELT_PIANO_META,
   WARM_RHODES_META,
   SOFT_VIBES_META,
+  WURLITZER_META,
+  JUNO_POLY_META,
+  JAZZ_ORGAN_META,
+  GLASS_CELESTA_META,
 ];
 
 const META_BY_ID: Record<TimbreId, InstrumentPresetMeta> = {
@@ -64,6 +72,10 @@ const META_BY_ID: Record<TimbreId, InstrumentPresetMeta> = {
   'felt-piano': FELT_PIANO_META,
   'warm-rhodes': WARM_RHODES_META,
   'soft-vibes': SOFT_VIBES_META,
+  wurlitzer: WURLITZER_META,
+  'juno-poly': JUNO_POLY_META,
+  'jazz-organ': JAZZ_ORGAN_META,
+  'glass-celesta': GLASS_CELESTA_META,
 };
 
 const BUILDER_BY_ID: Record<TimbreId, InstrumentVoiceBuilder> = {
@@ -81,6 +93,10 @@ const BUILDER_BY_ID: Record<TimbreId, InstrumentVoiceBuilder> = {
   'felt-piano': buildFeltPianoVoice,
   'warm-rhodes': buildWarmRhodesVoice,
   'soft-vibes': buildSoftVibesVoice,
+  wurlitzer: buildWurlitzerVoice,
+  'juno-poly': buildJunoPolyVoice,
+  'jazz-organ': buildJazzOrganVoice,
+  'glass-celesta': buildGlassCelestaVoice,
 };
 
 export function isSampledTimbre(id: TimbreId): boolean {

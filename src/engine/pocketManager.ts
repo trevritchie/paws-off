@@ -146,6 +146,18 @@ export class PocketManager implements PocketController {
 
   activate(handlers: PocketHandlers): void {
     this.active = true;
+    if (typeof navigator !== 'undefined') {
+      try {
+        const nav = navigator as Navigator & {
+          audioSession?: { type: string };
+        };
+        if (nav.audioSession) {
+          nav.audioSession.type = 'playback';
+        }
+      } catch {
+        // Ignore on browsers without Web Audio Session API.
+      }
+    }
     this.keepAlive.start();
     this.registerMediaActions(handlers);
 

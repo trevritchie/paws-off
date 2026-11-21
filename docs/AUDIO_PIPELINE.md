@@ -146,3 +146,26 @@ python3 scripts/process_samples.py --pack chamber-cello --src-root ../Movemental
 1. Add its anchor list and FFmpeg/LUFS configuration in `scripts/process_samples.py` and generate into `public/samples/<id>/`.
 2. Add its `id` to `AcousticSampleTimbreId` and `ACOUSTIC_PACK_CONFIGS` in `src/audio/sampleBank.ts`, bump `ACOUSTIC_SAMPLES_VERSION`, and add its metadata + `SAMPLE_PROFILES` entry in `src/audio/instruments/sampledVoices.ts`.
 3. Wire its ID into `TimbreId`, `RECOMMENDED_MELODY_TIMBRE` in `src/types/settings.ts`, `src/audio/synth.ts`, `src/audio/instruments/index.ts`, `src/components/SoundAndMix.tsx`, attribution in `README.md`, and coverage in `src/audio/__tests__/audio.test.ts`.
+
+---
+
+## Part 3: Runtime Mastering Chain & Community Wavetables
+
+### 3.1 Native Mastering Chain (`src/audio/mastering.ts`)
+
+Because Paws Off runs unattended in a pocket on mobile browsers, `MasterOutputChain` uses 100% native Web Audio nodes (zero `AudioWorklet` 128-sample render thread risk under iOS background throttling) to lift integrated output loudness from raw `-22..-27 LUFS` to broadcast-competitive **~-14 to -15 LUFS** without clipping or speaker buzz:
+
+| Stage | `Phone Speaker` (default) | `Headphones` | Notes |
+| --- | --- | --- | --- |
+| Sub-bass High-Pass | `95 Hz` (`Q = 0.707`) | `30 Hz` (`Q = 0.707`) | Protects small phone drivers from sub-bass excursion waste |
+| Parallel Bass Exciter | `0.38` mix (`140-620 Hz`, `4x` asymmetric shaper) | `0.0` (bypassed) | Synthesizes 2nd/3rd harmonics pre-compressor for missing-fundamental pitch clarity |
+| Presence & Air EQ | `+1.8 dB @ 2.4 kHz`, `-1.0 dB @ 7.5 kHz` | `0 dB` | Improves small-speaker intelligibility without piercing high-frequency fatigue |
+| Voice Presence EQ | `+2.5 dB @ 2.8 kHz` (`Q = 1.1`) | `0 dB` | Restores spoken-answer articulation on phone speakers |
+| Loudness Drive | `2.15` (`+6.6 dB`) | `1.55` (`+3.8 dB`) | Calibrates full summed mix evenly without changing relative slider balances |
+| Glue Compressor | `-14 dB`, `2.8:1`, `15 ms / 180 ms` | `-12 dB`, `2.2:1`, `22 ms / 220 ms` | Cohesive musical bus density |
+| Transparent Soft Clipper | Linear `<= 0.72`, C1 `tanh` to `0.94`, `4x` oversample | Same | Zero coloration below `-2.85 dBFS`, smooth rounding on transient peaks |
+| Brickwall Safety Limiter & Trim | `-1.2 dB`, `20:1`, `1 ms / 80 ms`, trim `0.94` (`-0.54 dBFS`) | Same | Leverages native ~6 ms lookahead and preserves inter-sample DAC headroom |
+
+### 3.2 Pure Web Audio Wavetables (`src/audio/instruments/wavetables.ts`)
+
+Four pure Web Audio instruments (`wurlitzer`, `juno-poly`, `jazz-organ`, `glass-celesta`) use compact 32-harmonic Fourier tables (>99.97% spectral energy preserved, zero external sample fetch) derived from Google Chrome Labs [`web-audio-samples`](https://github.com/GoogleChromeLabs/web-audio-samples) (`Wurlitzer_2`, `Organ_2`, `Chorus_Strings`, `Twelve_OpTines`, Apache License 2.0), alongside a 20-harmonic band-limited analog sawtooth (`WARM_SAW_WAVETABLE`).

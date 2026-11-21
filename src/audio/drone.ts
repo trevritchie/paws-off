@@ -152,13 +152,14 @@ export class ChromaticDrone implements DroneEngine {
     oscs.push(warmOsc);
     nodes.push(warmGain);
 
-    // Upper octave & gentle 5th only on lower/mid registers; keep high soprano pedal pure
+    // Upper octave & gentle 5th/3rd harmonics on lower/mid registers so low
+    // tonic pedals remain legible on phone speakers without crowding chords.
     if (octave <= 1) {
       const octOsc = ctx.createOscillator();
       octOsc.type = 'sine';
       octOsc.frequency.setValueAtTime(freq * 2, now);
       const octGain = ctx.createGain();
-      octGain.gain.value = octave === -1 ? 0.22 : octave === 0 ? 0.16 : 0.08;
+      octGain.gain.value = octave === -1 ? 0.26 : octave === 0 ? 0.19 : 0.08;
       octOsc.connect(octGain);
       octGain.connect(filter);
       oscs.push(octOsc);
@@ -173,6 +174,18 @@ export class ChromaticDrone implements DroneEngine {
       fifthGain.connect(filter);
       oscs.push(fifthOsc);
       nodes.push(fifthGain);
+
+      if (octave <= 0) {
+        const thirdHarmOsc = ctx.createOscillator();
+        thirdHarmOsc.type = 'sine';
+        thirdHarmOsc.frequency.setValueAtTime(freq * 3, now);
+        const thirdHarmGain = ctx.createGain();
+        thirdHarmGain.gain.value = octave === -1 ? 0.045 : 0.025;
+        thirdHarmOsc.connect(thirdHarmGain);
+        thirdHarmGain.connect(filter);
+        oscs.push(thirdHarmOsc);
+        nodes.push(thirdHarmGain);
+      }
     }
 
     filter.connect(layerGain);

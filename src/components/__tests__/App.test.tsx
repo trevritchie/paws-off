@@ -114,6 +114,18 @@ describe('Paws Off App UI', () => {
       screen.getByRole('button', { name: /satb choir.*ooh & ahh voices/i }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole('button', { name: /wurlitzer ep.*warm vintage reed/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /juno poly.*analog stereo synth/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /jazz organ.*warm b3 drawbars/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /glass celesta.*crystalline & bell-like/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole('button', { name: /electric piano/i }),
     ).not.toBeInTheDocument();
     expect(
@@ -122,6 +134,16 @@ describe('Paws Off App UI', () => {
     expect(
       screen.getByRole('button', { name: /warm room/i }),
     ).toHaveAttribute('aria-pressed', 'true');
+    const outputGroup = screen.getByRole('group', {
+      name: /audio output profile/i,
+    });
+    const outputButtons = within(outputGroup).getAllByRole('button');
+    expect(outputButtons.map((b) => b.textContent)).toEqual([
+      'Phone Speaker',
+      'Headphones',
+    ]);
+    expect(outputButtons[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(outputButtons[1]).toHaveAttribute('aria-pressed', 'false');
     expect(
       screen.getByRole('switch', { name: /^stereo$/i }),
     ).toHaveAttribute('aria-checked', 'true');
@@ -263,6 +285,7 @@ describe('Paws Off App UI', () => {
     // Primary Sound & Mix interactions (no need to expand Advanced!)
     await user.click(screen.getByRole('button', { name: /warm rhodes/i }));
     await user.click(screen.getByRole('button', { name: /lush hall/i }));
+    await user.click(screen.getByRole('button', { name: /headphones/i }));
     await user.click(screen.getByRole('button', { name: /^random$/i }));
     await user.click(screen.getByRole('switch', { name: /^enable drone$/i }));
 
@@ -363,6 +386,7 @@ describe('Paws Off App UI', () => {
     expect(saved.halfDimNaming).toBe('minor-seven-flat-five');
     expect(saved.timbre).toBe('warm-rhodes');
     expect(saved.ambience).toBe('lush-hall');
+    expect(saved.outputProfile).toBe('headphones');
     expect(saved.voicePanning).toBe(true);
     expect(saved.voicePanningMode).toBe('random');
     expect(saved.droneEnabled).toBe(true);

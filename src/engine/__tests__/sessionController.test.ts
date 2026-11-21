@@ -5,6 +5,7 @@ import type { ScheduledNote } from '../../music/arrangement';
 import {
   DEFAULT_SETTINGS,
   type AmbienceMode,
+  type AudioOutputProfile,
   type DroneOctave,
   type PitchClass,
   type SessionSettings,
@@ -39,6 +40,7 @@ class FakeSynth implements SynthEngine {
   melodyVolume = 0.75;
   voiceVolume = 0.65;
   ambience: AmbienceMode = 'warm-room';
+  outputProfile: AudioOutputProfile = 'phone-speaker';
   chords: RecordedChord[] = [];
   releaseAllCount = 0;
   private stateListeners = new Set<(s: string) => void>();
@@ -107,6 +109,10 @@ class FakeSynth implements SynthEngine {
 
   setAmbience(mode: AmbienceMode): void {
     this.ambience = mode;
+  }
+
+  setOutputProfile(profile: AudioOutputProfile): void {
+    this.outputProfile = profile;
   }
 
   onStateChange(cb: (state: string) => void): () => void {
@@ -1110,5 +1116,20 @@ describe('SessionController state machine & scheduler', () => {
       ch.notes.filter((n) => n.role === 'melody').map((mn) => mn.midi),
     );
     expect(replayMelodyPitches).toEqual(pass1MelodyPitches);
+  });
+
+  it('propagates audio output profile on start and live updateSettings', () => {
+    const { controller, synth } = createHarness({
+      outputProfile: 'phone-speaker',
+    });
+
+    controller.start();
+    expect(synth.outputProfile).toBe('phone-speaker');
+
+    controller.updateSettings({
+      ...DEFAULT_SETTINGS,
+      outputProfile: 'headphones',
+    });
+    expect(synth.outputProfile).toBe('headphones');
   });
 });

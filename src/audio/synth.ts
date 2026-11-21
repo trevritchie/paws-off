@@ -1,6 +1,10 @@
 import type { ScheduledNote } from '../music/arrangement';
 import { midiToFreq } from '../music/voicing';
-import type { AmbienceMode, TimbreId } from '../types/settings';
+import type {
+  AmbienceMode,
+  AudioOutputProfile,
+  TimbreId,
+} from '../types/settings';
 import { ChoirSampleBank } from './choirSamples';
 import { buildInstrumentVoice } from './instruments';
 import {
@@ -8,6 +12,7 @@ import {
   createVoiceSharedResources,
   type VoiceSharedResources,
 } from './instruments/types';
+import { MasterOutputChain } from './mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from './reverb';
 import { AcousticSampleBank, isAcousticSampleTimbre } from './sampleBank';
 import { chordSliderToGain, melodySliderToGain, voiceSliderToGain } from './volume';
@@ -31,6 +36,7 @@ export interface SynthEngine {
   setMelodyVolume(volume: number): void;
   setVoiceVolume(volume: number): void;
   setAmbience(mode: AmbienceMode): void;
+  setOutputProfile?(profile: AudioOutputProfile): void;
   preloadTimbre?(timbre: TimbreId): Promise<void>;
   onStateChange(cb: (state: string) => void): () => void;
   dispose(): void;
@@ -57,7 +63,7 @@ export class PolySynth implements SynthEngine {
   private wetGain: GainNode | null = null;
   private convolver: ConvolverNode | null = null;
   private voiceBus: GainNode | null = null;
-  private compressor: DynamicsCompressorNode | null = null;
+  private masterChain: MasterOutputChain | null = null;
   private sharedResources: VoiceSharedResources | null = null;
   private choirBank = new ChoirSampleBank();
   private sampleBank = new AcousticSampleBank();
@@ -71,6 +77,7 @@ export class PolySynth implements SynthEngine {
   private melodyVolume = 0.75;
   private voiceVolume = 0.65;
   private ambience: AmbienceMode = 'warm-room';
+  private outputProfile: AudioOutputProfile = 'phone-speaker';
   private stateChangeBound: (() => void) | null = null;
 
   private getOrCreateIr(
@@ -135,6 +142,11 @@ export class PolySynth implements SynthEngine {
     const wetGain = ctx.createGain();
     wetGain.gain.value = ambCfg.wetGain;
 
+    const reverbHpf = ctx.createBiquadFilter();
+    reverbHpf.type = 'highpass';
+    reverbHpf.frequency.value = 180;
+    reverbHpf.Q.value = 0.707;
+
     const convolver = ctx.createConvolver();
     convolver.buffer = this.getOrCreateIr(
       ctx,
@@ -144,15 +156,7 @@ export class PolySynth implements SynthEngine {
     const voiceBus = ctx.createGain();
     voiceBus.gain.value = voiceSliderToGain(this.voiceVolume);
 
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -6;
-    compressor.knee.value = 12;
-    compressor.ratio.value = 3;
-    compressor.attack.value = 0.008;
-    compressor.release.value = 0.18;
-
-    const masterGain = ctx.createGain();
-    masterGain.gain.value = 0.95;
+    const masterChain = new MasterOutputChain(ctx, this.outputProfile);
 
     chordBus.connect(chordLevelGain);
     chordLevelGain.connect(warmthFilter);
@@ -161,14 +165,14 @@ export class PolySynth implements SynthEngine {
     melodyBus.connect(melodyLevelGain);
     melodyLevelGain.connect(voicePocketEq);
     voicePocketEq.connect(dryGain);
-    voicePocketEq.connect(convolver);
+    voicePocketEq.connect(reverbHpf);
+    reverbHpf.connect(convolver);
     convolver.connect(wetGain);
 
-    dryGain.connect(compressor);
-    wetGain.connect(compressor);
-    voiceBus.connect(compressor);
-    compressor.connect(masterGain);
-    masterGain.connect(ctx.destination);
+    dryGain.connect(masterChain.input);
+    wetGain.connect(masterChain.input);
+    voiceBus.connect(masterChain.voicePresenceEq);
+    masterChain.output.connect(ctx.destination);
 
     const onStateChange = () => {
       const state = ctx.state as string;
@@ -188,7 +192,7 @@ export class PolySynth implements SynthEngine {
     this.wetGain = wetGain;
     this.convolver = convolver;
     this.voiceBus = voiceBus;
-    this.compressor = compressor;
+    this.masterChain = masterChain;
     this.graphNodes = [
       chordBus,
       chordLevelGain,
@@ -199,10 +203,10 @@ export class PolySynth implements SynthEngine {
       voicePocketEq,
       dryGain,
       wetGain,
+      reverbHpf,
       convolver,
       voiceBus,
-      compressor,
-      masterGain,
+      ...masterChain.nodes,
     ];
     this.stateChangeBound = onStateChange;
 
@@ -227,7 +231,7 @@ export class PolySynth implements SynthEngine {
 
   getCompressorInput(): AudioNode | null {
     if (!this.ctx) this.initGraph();
-    return this.compressor;
+    return this.masterChain?.input ?? null;
   }
 
   getVoiceInput(): AudioNode | null {
@@ -317,6 +321,12 @@ export class PolySynth implements SynthEngine {
       this.convolver.buffer = nextIr;
     }
     this.wetGain.gain.setTargetAtTime(cfg.wetGain, now, 0.05);
+  }
+
+  setOutputProfile(profile: AudioOutputProfile): void {
+    this.outputProfile = profile;
+    if (!this.ctx || !this.masterChain) return;
+    this.masterChain.setProfile(profile, this.ctx.currentTime);
   }
 
   async preloadTimbre(timbre: TimbreId): Promise<void> {
@@ -582,6 +592,7 @@ export class PolySynth implements SynthEngine {
     this.wetGain = null;
     this.convolver = null;
     this.voiceBus = null;
-    this.compressor = null;
+    this.masterChain?.dispose();
+    this.masterChain = null;
   }
 }

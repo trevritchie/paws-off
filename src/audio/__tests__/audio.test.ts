@@ -9,6 +9,7 @@ import {
   getSpokenKeyPhrase,
 } from '../../music/chords';
 import {
+  type AudioOutputProfile,
   getRecommendedMelodyTimbre,
   type InversionNotation,
   LEGACY_SETTINGS_STORAGE_KEY,
@@ -25,6 +26,12 @@ import {
 import { formatDroneNoteName, pitchClassToDroneMidi } from '../drone';
 import { INSTRUMENT_PRESETS } from '../instruments';
 import { computeVoicePan } from '../instruments/types';
+import {
+  createBassExciterCurve,
+  createTransparentSoftClipCurve,
+  MasterOutputChain,
+  OUTPUT_PROFILE_CONFIGS,
+} from '../mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from '../reverb';
 import {
   ACOUSTIC_PACK_CONFIGS,
@@ -473,8 +480,8 @@ describe('perceptual volume calibration', () => {
 });
 
 describe('meditative instruments & ambience', () => {
-  it('exposes all 14 instrument presets (Velvet Pad default, 10 real-sample acoustics, and 4 synths)', () => {
-    expect(INSTRUMENT_PRESETS).toHaveLength(14);
+  it('exposes all 18 instrument presets (Velvet Pad default, 10 real-sample acoustics, and 8 pure Web Audio synths)', () => {
+    expect(INSTRUMENT_PRESETS).toHaveLength(18);
     const ids = INSTRUMENT_PRESETS.map((p) => p.id);
     expect(ids).toEqual([
       'velvet-pad',
@@ -491,6 +498,10 @@ describe('meditative instruments & ambience', () => {
       'felt-piano',
       'warm-rhodes',
       'soft-vibes',
+      'wurlitzer',
+      'juno-poly',
+      'jazz-organ',
+      'glass-celesta',
     ]);
     for (const preset of INSTRUMENT_PRESETS) {
       expect(preset.defaultReleaseSec).toBeGreaterThan(0);
@@ -950,8 +961,8 @@ describe('meditative instruments & ambience', () => {
         const node = {
           type: 'lowpass',
           frequency: makeParam(350),
-          Q: { value: 1 },
-          gain: { value: 0 },
+          Q: makeParam(1),
+          gain: makeParam(0),
           connect: vi.fn(),
           disconnect: vi.fn(),
         };
@@ -1092,6 +1103,363 @@ describe('meditative instruments & ambience', () => {
       expect(melodyReleaseGain.gain.cancelScheduledValues).toHaveBeenCalledWith(2.0);
       expect(melodyReleaseGain.gain.setValueAtTime).toHaveBeenCalledWith(0, 2.0);
       expect(createdOscs.slice(oscCountBefore).length).toBeGreaterThan(0);
+
+      synth.dispose();
+    } finally {
+      Object.defineProperty(window, 'AudioContext', {
+        value: originalAudioContext,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+});
+
+describe('mastering chain, studio reverb & expanded wavetable synths', () => {
+  it('generates a strictly linear-to-tanh transparent soft-clip curve and DC-free asymmetric bass exciter curve', () => {
+    const clipCurve = createTransparentSoftClipCurve(0.72, 0.94, 2049);
+    expect(clipCurve).toHaveLength(2049);
+    const mid = 1024;
+    expect(clipCurve[mid]).toBeCloseTo(0, 6);
+
+    for (let i = 0; i < clipCurve.length; i++) {
+      const x = (i * 2) / (clipCurve.length - 1) - 1;
+      const y = clipCurve[i];
+      expect(Math.abs(y)).toBeLessThanOrEqual(0.94 + 1e-6);
+      if (Math.abs(x) <= 0.72) {
+        expect(y).toBeCloseTo(x, 5);
+      }
+      // Odd symmetry & monotonicity
+      expect(clipCurve[clipCurve.length - 1 - i]).toBeCloseTo(-y, 5);
+      if (i > 0) {
+        expect(y).toBeGreaterThanOrEqual(clipCurve[i - 1]);
+      }
+    }
+
+    const exciterCurve = createBassExciterCurve(2.6, 0.22, 1025);
+    expect(exciterCurve).toHaveLength(1025);
+    // Exact zero at x=0 (no DC offset)
+    expect(exciterCurve[512]).toBeCloseTo(0, 6);
+    // Asymmetric response generates both even (2nd) and odd (3rd) harmonics
+    const posQuarter = exciterCurve[512 + 256]; // x = +0.5
+    const negQuarter = exciterCurve[512 - 256]; // x = -0.5
+    expect(Math.abs(posQuarter + negQuarter)).toBeGreaterThan(0.01);
+    for (let i = 0; i < exciterCurve.length; i++) {
+      expect(Math.abs(exciterCurve[i])).toBeLessThanOrEqual(1.0 + 1e-6);
+    }
+  });
+
+  it('wires MasterOutputChain with 4x shapers and switches Phone Speaker / Headphones smoothly', () => {
+    const makeParam = (initial = 0) => ({
+      value: initial,
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+    });
+
+    const filters: Array<{
+      type: string;
+      frequency: ReturnType<typeof makeParam>;
+      Q: ReturnType<typeof makeParam>;
+      gain: ReturnType<typeof makeParam>;
+    }> = [];
+    const shapers: Array<{
+      curve: Float32Array | null;
+      oversample: string;
+    }> = [];
+    const compressors: Array<{
+      threshold: ReturnType<typeof makeParam>;
+      knee: ReturnType<typeof makeParam>;
+      ratio: ReturnType<typeof makeParam>;
+      attack: ReturnType<typeof makeParam>;
+      release: ReturnType<typeof makeParam>;
+    }> = [];
+
+    const mockCtx = {
+      currentTime: 5.0,
+      createGain: vi.fn(() => ({
+        gain: makeParam(1),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      })),
+      createBiquadFilter: vi.fn(() => {
+        const node = {
+          type: 'lowpass',
+          frequency: makeParam(350),
+          Q: makeParam(1),
+          gain: makeParam(0),
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        filters.push(node);
+        return node;
+      }),
+      createWaveShaper: vi.fn(() => {
+        const node = {
+          curve: null as Float32Array | null,
+          oversample: 'none',
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        shapers.push(node);
+        return node;
+      }),
+      createDynamicsCompressor: vi.fn(() => {
+        const node = {
+          threshold: makeParam(-6),
+          knee: makeParam(12),
+          ratio: makeParam(3),
+          attack: makeParam(0.008),
+          release: makeParam(0.18),
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        compressors.push(node);
+        return node;
+      }),
+    } as unknown as AudioContext;
+
+    const chain = new MasterOutputChain(mockCtx, 'phone-speaker');
+    expect(shapers).toHaveLength(2);
+    expect(shapers[0].oversample).toBe('4x');
+    expect(shapers[1].oversample).toBe('4x');
+    expect(compressors).toHaveLength(2);
+    // Safety brickwall limiter
+    expect(compressors[1].threshold.value).toBe(-1.2);
+    expect(compressors[1].ratio.value).toBe(20);
+    expect(compressors[1].knee.value).toBe(0);
+    // Sub-bass HPF starts at Phone Speaker 95 Hz
+    const subHpf = filters[1];
+    expect(subHpf.frequency.value).toBe(
+      OUTPUT_PROFILE_CONFIGS['phone-speaker'].subHpfHz,
+    );
+
+    chain.setProfile('headphones' as AudioOutputProfile, 5.5);
+    expect(subHpf.frequency.setTargetAtTime).toHaveBeenCalledWith(30, 5.5, 0.03);
+    expect(chain.voicePresenceEq.gain.setTargetAtTime).toHaveBeenCalledWith(
+      0,
+      5.5,
+      0.03,
+    );
+
+    chain.setProfile('phone-speaker', 6.0);
+    expect(subHpf.frequency.setTargetAtTime).toHaveBeenCalledWith(95, 6.0, 0.03);
+    expect(chain.voicePresenceEq.gain.setTargetAtTime).toHaveBeenCalledWith(
+      2.5,
+      6.0,
+      0.03,
+    );
+
+    chain.dispose();
+  });
+
+  it('builds stereo-decorrelated early-reflection impulse responses with clean pre-delay', () => {
+    const fakeCtx = {
+      sampleRate: 44100,
+      createBuffer: (_ch: number, len: number) => {
+        const ch0 = new Float32Array(len);
+        const ch1 = new Float32Array(len);
+        return {
+          length: len,
+          numberOfChannels: 2,
+          getChannelData: (c: number) => (c === 0 ? ch0 : ch1),
+        } as unknown as AudioBuffer;
+      },
+    } as unknown as BaseAudioContext;
+
+    const ir = createAmbienceImpulseResponse(fakeCtx, 'warm-room');
+    const left = ir.getChannelData(0);
+    const right = ir.getChannelData(1);
+
+    // Pre-delay region (first 12ms = 529 samples) starts strictly silent
+    expect(left[0]).toBe(0);
+    expect(right[0]).toBe(0);
+    expect(left[400]).toBe(0);
+    expect(right[400]).toBe(0);
+
+    // Early reflection window (12ms..55ms) has clear stereo decorrelated energy
+    let diffEnergy = 0;
+    for (let i = 529; i < 2400; i++) {
+      diffEnergy += Math.abs(left[i] - right[i]);
+    }
+    expect(diffEnergy).toBeGreaterThan(1.0);
+  });
+
+  it('sanitizes outputProfile and renders all 4 new wavetable instruments cleanly', async () => {
+    expect(sanitizeSettings({}).outputProfile).toBe('phone-speaker');
+    expect(sanitizeSettings({ outputProfile: 'headphones' }).outputProfile).toBe(
+      'headphones',
+    );
+    expect(sanitizeSettings({ outputProfile: 'speaker' }).outputProfile).toBe(
+      'phone-speaker',
+    );
+
+    for (const id of [
+      'wurlitzer',
+      'juno-poly',
+      'jazz-organ',
+      'glass-celesta',
+    ] as const) {
+      expect(sanitizeSettings({ timbre: id }).timbre).toBe(id);
+      expect(getRecommendedMelodyTimbre(id)).toBeDefined();
+    }
+
+    const makeParam = (initial = 0) => ({
+      value: initial,
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+    });
+    const createdOscs: Array<{ start: ReturnType<typeof vi.fn> }> = [];
+    const createdShapers: Array<{ oversample: string }> = [];
+
+    class MockNewTimbreContext {
+      currentTime = 1.0;
+      sampleRate = 44100;
+      state = 'running';
+      destination = {};
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
+      resume = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      createPeriodicWave = vi.fn(() => ({}));
+      createWaveShaper = vi.fn(() => {
+        const node = {
+          curve: null,
+          oversample: 'none',
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdShapers.push(node);
+        return node;
+      });
+      createGain = vi.fn(() => ({
+        gain: makeParam(1),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createBiquadFilter = vi.fn(() => ({
+        type: 'lowpass',
+        frequency: makeParam(350),
+        Q: makeParam(1),
+        gain: makeParam(0),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createStereoPanner = vi.fn(() => ({
+        pan: makeParam(0),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createOscillator = vi.fn(() => {
+        const node = {
+          type: 'sine',
+          frequency: makeParam(440),
+          detune: makeParam(0),
+          start: vi.fn(),
+          stop: vi.fn(),
+          disconnect: vi.fn(),
+          connect: vi.fn(),
+          setPeriodicWave: vi.fn(),
+          onended: null as (() => void) | null,
+        };
+        createdOscs.push(node);
+        return node;
+      });
+      createBufferSource = vi.fn(() => ({
+        buffer: null,
+        playbackRate: makeParam(1),
+        start: vi.fn(),
+        stop: vi.fn(),
+        disconnect: vi.fn(),
+        connect: vi.fn(),
+        onended: null as (() => void) | null,
+      }));
+      createConvolver = vi.fn(() => ({
+        buffer: null,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createDynamicsCompressor = vi.fn(() => ({
+        threshold: makeParam(-6),
+        knee: makeParam(12),
+        ratio: makeParam(3),
+        attack: makeParam(0.008),
+        release: makeParam(0.18),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createBuffer = vi.fn((ch: number, len: number) => {
+        const channels = Array.from({ length: ch }, () => new Float32Array(len));
+        return {
+          length: len,
+          numberOfChannels: ch,
+          getChannelData: (c: number) => channels[c],
+        };
+      });
+    }
+
+    const originalAudioContext = window.AudioContext;
+    Object.defineProperty(window, 'AudioContext', {
+      value: MockNewTimbreContext,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const synth = new PolySynth();
+      await synth.ensureContext();
+      synth.setOutputProfile('headphones');
+      synth.setOutputProfile('phone-speaker');
+
+      for (const timbre of [
+        'warm-rhodes',
+        'wurlitzer',
+        'juno-poly',
+        'jazz-organ',
+        'glass-celesta',
+      ] as const) {
+        const oscBefore = createdOscs.length;
+        const handle = synth.playChord(
+          [
+            {
+              midi: 48,
+              offsetSec: 0,
+              durationSec: 1.0,
+              velocity: 0.78,
+              role: 'bass',
+            },
+            {
+              midi: 64,
+              offsetSec: 0.01,
+              durationSec: 1.0,
+              velocity: 0.65,
+              role: 'harmony',
+            },
+            {
+              midi: 76,
+              offsetSec: 0.05,
+              durationSec: 0.5,
+              velocity: 0.9,
+              role: 'melody',
+            },
+          ],
+          1.0,
+          timbre,
+        );
+        expect(createdOscs.length).toBeGreaterThan(oscBefore);
+        handle.release(1.4);
+      }
+
+      // Warm Rhodes + Wurlitzer + MasterOutputChain all enforce 4x oversampling on WaveShapers
+      expect(createdShapers.length).toBeGreaterThanOrEqual(4);
+      for (const shaper of createdShapers) {
+        expect(shaper.oversample).toBe('4x');
+      }
 
       synth.dispose();
     } finally {

@@ -43,6 +43,7 @@ import {
 } from '../music/voicing';
 import type {
   AmbienceMode,
+  AudioOutputProfile,
   ChordId,
   ChordInversion,
   PitchClass,
@@ -217,6 +218,7 @@ export class SessionController {
     this.rng = deps.rng ?? Math.random;
 
     this.synth.setMelodyVolume(this.settings.melodyVolume);
+    this.synth.setOutputProfile?.(this.settings.outputProfile);
     if (this.settings.melodyEnabled) {
       void this.synth.preloadTimbre?.(this.settings.melodyTimbre);
     }
@@ -421,6 +423,7 @@ export class SessionController {
     this.synth.setMelodyVolume(this.settings.melodyVolume);
     this.synth.setVoiceVolume(this.settings.voiceVolume);
     this.synth.setAmbience(this.settings.ambience);
+    this.synth.setOutputProfile?.(this.settings.outputProfile);
     this.syncDrone();
     this.currentRevealReleaseSec = 0;
     this.lastQuestionReleaseSec = 0;
@@ -556,6 +559,7 @@ export class SessionController {
     ambience?: AmbienceMode,
     voicePanning?: boolean,
     voicePanningMode?: VoicePanningMode,
+    outputProfile?: AudioOutputProfile,
   ): void {
     if (this.isRunning) return;
 
@@ -564,6 +568,7 @@ export class SessionController {
     const targetPanning = voicePanning ?? this.settings.voicePanning;
     const targetPanningMode =
       voicePanningMode ?? this.settings.voicePanningMode;
+    const targetOutputProfile = outputProfile ?? this.settings.outputProfile;
 
     // Alternate Ooh and Ahh on successive idle previews so users hear both
     const previewVowel: ChoirVowel =
@@ -582,6 +587,7 @@ export class SessionController {
       this.synth.setDucked(false, now);
       this.synth.setChordVolume(this.settings.chordVolume);
       this.synth.setAmbience(targetAmbience);
+      this.synth.setOutputProfile?.(targetOutputProfile);
 
       const voiced = this.voicingStrategy.voiceSequence(
         ['Imaj7'],
@@ -636,6 +642,7 @@ export class SessionController {
       this.synth.setDucked(false, now);
       this.synth.setMelodyVolume(this.settings.melodyVolume);
       this.synth.setAmbience(this.settings.ambience);
+      this.synth.setOutputProfile?.(this.settings.outputProfile);
 
       const tonicMidi = 72 + this.settings.fixedKey;
       const notes: ScheduledNote[] = [
@@ -688,6 +695,7 @@ export class SessionController {
     this.synth.setMelodyVolume(next.melodyVolume);
     this.synth.setVoiceVolume(next.voiceVolume);
     this.synth.setAmbience(next.ambience);
+    this.synth.setOutputProfile?.(next.outputProfile);
     void this.synth.preloadTimbre?.(next.timbre);
     if (next.melodyEnabled) {
       void this.synth.preloadTimbre?.(next.melodyTimbre);

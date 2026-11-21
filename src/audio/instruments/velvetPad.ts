@@ -19,7 +19,9 @@ export function buildVelvetPadVoice({
   freq,
   peakGain,
   note,
+  voiceIndex,
   envGain,
+  shared,
 }: VoiceBuildParams): BuiltVoiceNodes {
   const isBass = note.role === 'bass';
   const isMelody = note.role === 'melody';
@@ -40,15 +42,20 @@ export function buildVelvetPadVoice({
   const oscs: OscillatorNode[] = [];
   const auxNodes: AudioNode[] = [noteFilter];
 
-  const detuneCents = isBass ? 1.5 : 2.5;
+  const baseDetune = isBass ? 1.5 : 2.5;
+  const voiceSpread = voiceIndex % 2 === 0 ? -0.4 : 0.4;
 
-  // Warm chorus sawtooth layer
+  // Band-limited warm analog chorus sawtooth layer
   const sawOsc = ctx.createOscillator();
-  sawOsc.type = 'sawtooth';
+  if (shared.warmSawWave) {
+    sawOsc.setPeriodicWave(shared.warmSawWave);
+  } else {
+    sawOsc.type = 'sawtooth';
+  }
   sawOsc.frequency.setValueAtTime(freq, t0);
-  sawOsc.detune.setValueAtTime(-detuneCents, t0);
+  sawOsc.detune.setValueAtTime(-(baseDetune + voiceSpread), t0);
   const sawGain = ctx.createGain();
-  sawGain.gain.value = isBass ? 0.17 : 0.2;
+  sawGain.gain.value = isBass ? 0.2 : 0.23;
   sawOsc.connect(sawGain);
   sawGain.connect(noteFilter);
   oscs.push(sawOsc);
@@ -59,7 +66,7 @@ export function buildVelvetPadVoice({
   triOsc.type = 'triangle';
   triOsc.frequency.setValueAtTime(freq, t0);
   const triGain = ctx.createGain();
-  triGain.gain.value = 0.6;
+  triGain.gain.value = 0.58;
   triOsc.connect(triGain);
   triGain.connect(noteFilter);
   oscs.push(triOsc);
@@ -69,7 +76,7 @@ export function buildVelvetPadVoice({
   const sineOsc = ctx.createOscillator();
   sineOsc.type = 'sine';
   sineOsc.frequency.setValueAtTime(freq, t0);
-  sineOsc.detune.setValueAtTime(detuneCents, t0);
+  sineOsc.detune.setValueAtTime(baseDetune + voiceSpread, t0);
   const sineGain = ctx.createGain();
   sineGain.gain.value = 0.32;
   sineOsc.connect(sineGain);

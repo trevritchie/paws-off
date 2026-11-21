@@ -10,6 +10,7 @@ import {
   loadSettings,
   saveSettings,
   type AmbienceMode,
+  type AudioOutputProfile,
   type SessionSettings,
   type TimbreId,
   type VoicePanningMode,
@@ -129,12 +130,14 @@ export function useEarTrainer() {
       ambience?: AmbienceMode,
       voicePanning?: boolean,
       voicePanningMode?: VoicePanningMode,
+      outputProfile?: AudioOutputProfile,
     ) => {
       controllerRef.current?.previewSound(
         timbre,
         ambience,
         voicePanning,
         voicePanningMode,
+        outputProfile,
       );
     },
     [],
