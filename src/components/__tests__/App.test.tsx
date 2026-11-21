@@ -178,12 +178,30 @@ describe('Paws Off App UI', () => {
     const user = userEvent.setup();
     render(<App />);
 
+    expect(
+      screen.getByRole('button', { name: 'Essential' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /basic/i }),
+    ).not.toBeInTheDocument();
+
     // Select All Sevenths preset
     await user.click(screen.getByRole('button', { name: 'All Sevenths' }));
     expect(screen.getByText('7 active')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /seventh viiø7/i }),
     ).toHaveAttribute('aria-pressed', 'true');
+
+    // Clicking Essential restores the 4 essential triads (I, IV, V, vi)
+    await user.click(screen.getByRole('button', { name: 'Essential' }));
+    expect(screen.getByText('4 active')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /triad I \(one major\)/i }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Select All Sevenths preset again to test single-chord deselection
+    await user.click(screen.getByRole('button', { name: 'All Sevenths' }));
+    expect(screen.getByText('7 active')).toBeInTheDocument();
 
     // Toggle one chord off and check count drops to 6
     await user.click(screen.getByRole('button', { name: /seventh ii7/i }));

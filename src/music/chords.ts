@@ -817,7 +817,7 @@ export interface ChordPreset {
 }
 
 export const CHORD_PRESETS: readonly ChordPreset[] = [
-  { id: 'basic', label: 'Basic (I IV V vi)', chords: ['I', 'IV', 'V', 'vi'] },
+  { id: 'essential', label: 'Essential', chords: ['I', 'IV', 'V', 'vi'] },
   { id: 'all-triads', label: 'All Triads', chords: TRIAD_IDS },
   { id: 'all-sevenths', label: 'All Sevenths', chords: SEVENTH_IDS },
   { id: 'all', label: 'All 14', chords: DIATONIC_CHORD_IDS },
