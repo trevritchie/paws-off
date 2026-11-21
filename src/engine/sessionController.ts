@@ -10,7 +10,7 @@ import {
   type ScheduledNote,
 } from '../music/arrangement';
 import {
-  formatChordDisplay,
+  CHORD_DEFS,
   getAllowedInversionsForChord,
   getInversionSuffixPhrases,
   getMajorKeyInfo,
@@ -296,7 +296,7 @@ export class SessionController {
     const keyName = getMajorKeyInfo(this.activeKey).displayName;
     let title = `${keyName} · Ready`;
     if (this.phase === 'orienting_voice' || this.phase === 'orienting_cadence') {
-      title = `Key of ${keyName}: Orienting`;
+      title = `Key of ${keyName}`;
     } else if (
       this.phase === 'question_playing' ||
       this.phase === 'repeat_pause' ||
@@ -306,22 +306,13 @@ export class SessionController {
     } else if (
       this.phase === 'answer_revealing' ||
       this.phase === 'post_answer_pause' ||
-      this.phase === 'post_answer_replay'
+      this.phase === 'post_answer_replay' ||
+      this.phase === 'next_question_pause'
     ) {
-      const answerSymbols = this.progression
+      title = this.progression
         .slice(0, Math.max(1, this.revealedCount))
-        .map(
-          (id, idx) =>
-            formatChordDisplay(
-              id,
-              this.progressionInversions[idx] ?? 0,
-              this.settings.inversionNotation,
-            ).inline,
-        )
-        .join(' - ');
-      title = `Q${this.questionNumber} Answer: ${answerSymbols}`;
-    } else if (this.phase === 'next_question_pause') {
-      title = `Q${this.questionNumber} Complete`;
+        .map((id) => CHORD_DEFS[id].symbol)
+        .join('-');
     }
 
     this.pocket.updateMetadata({
@@ -1284,7 +1275,6 @@ export class SessionController {
             this.phaseDeadlineTime =
               now + Math.max(NEXT_QUESTION_PAUSE_SEC, releaseClearance);
           }
-          this.updateMediaMetadata();
           this.emit();
         }
         break;
@@ -1306,7 +1296,6 @@ export class SessionController {
           this.activeChordIndex = -1;
           this.phase = 'next_question_pause';
           this.phaseDeadlineTime = now + NEXT_QUESTION_PAUSE_SEC;
-          this.updateMediaMetadata();
           this.emit();
         }
         break;

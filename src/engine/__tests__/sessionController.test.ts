@@ -961,8 +961,8 @@ describe('SessionController state machine & scheduler', () => {
       /^(Five seven third inversion|One first inversion)$/,
     );
     const firstExpectedLabel =
-      snap.progression[0] === 'V7' ? 'V7 (3rd)' : 'I (1st)';
-    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toContain(
+      snap.progression[0] === 'V7' ? 'V7' : 'I';
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
       firstExpectedLabel,
     );
 
@@ -986,7 +986,7 @@ describe('SessionController state machine & scheduler', () => {
     );
   });
 
-  it('announces inverted chords in scale-degree and solfege modes and updates lock-screen metadata', () => {
+  it('announces inverted chords in scale-degree and solfege modes and updates concise lock-screen metadata', () => {
     const { controller, synth, announcer, pocket, clock } = createHarness(
       {
         allowedChords: ['V', 'V7'],
@@ -1014,8 +1014,8 @@ describe('SessionController state machine & scheduler', () => {
     expect(announcer.spoken[0].text).toBe(
       firstIsV ? 'Five over degree seven' : 'Five seven over degree four',
     );
-    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toContain(
-      firstIsV ? 'V (over 7)' : 'V7 (over 4)',
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      firstIsV ? 'V' : 'V7',
     );
 
     controller.updateSettings({
@@ -1035,8 +1035,8 @@ describe('SessionController state machine & scheduler', () => {
     expect(announcer.spoken[1].text).toBe(
       firstIsV ? 'Five seven over fa' : 'Five over ti',
     );
-    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toContain(
-      firstIsV ? 'V7 (over Fa)' : 'V (over Ti)',
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      firstIsV ? 'V-V7' : 'V7-V',
     );
   });
 
@@ -1137,5 +1137,61 @@ describe('SessionController state machine & scheduler', () => {
       outputProfile: 'phone-speaker',
     });
     expect(synth.outputProfile).toBe('phone-speaker');
+  });
+
+  it('publishes concise lock-screen metadata without Answer/Complete prefixes or inversion clutter', () => {
+    const { controller, synth, announcer, pocket, clock } = createHarness(
+      {
+        allowedChords: ['I', 'IV', 'V', 'vi'],
+        bpm: 120,
+        progressionLength: 3,
+        questionRepeats: 2,
+        repeatPauseSec: 0.4,
+        keyOrientation: 'none',
+        keyMode: 'fixed',
+        fixedKey: 0,
+        triadInversions: [0, 1, 2],
+        playFinalReplayAfterAnswer: false,
+      },
+      [0.15, 0.45, 0.75, 0.35, 0.65, 0.25],
+    );
+
+    controller.start();
+    expect(pocket.metadataTitles).toContain('Q1 · Pass 1/2');
+    const prog = controller.getSnapshot().progression;
+
+    // Play pass 1 + repeat pause + pass 2
+    advanceAndTick(synth, clock, 6.6);
+    expect(pocket.metadataTitles).toContain('Q1 · Pass 2/2');
+
+    // Finish pass 2 + pre_answer_pause -> reveal chord 1, 2, 3
+    advanceAndTick(synth, clock, 6.8);
+    expect(controller.getSnapshot().phase).toBe('answer_revealing');
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      prog[0],
+    );
+
+    announcer.finishLatest();
+    advanceAndTick(synth, clock, 2.05);
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      `${prog[0]}-${prog[1]}`,
+    );
+
+    announcer.finishLatest();
+    advanceAndTick(synth, clock, 2.05);
+    const fullAnswerTitle = `${prog[0]}-${prog[1]}-${prog[2]}`;
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      fullAnswerTitle,
+    );
+
+    // Finish final answer chord -> enters next_question_pause with no "Complete" flicker
+    announcer.finishLatest();
+    advanceAndTick(synth, clock, 2.05);
+    expect(controller.getSnapshot().phase).toBe('next_question_pause');
+    expect(pocket.metadataTitles.some((t) => /complete/i.test(t))).toBe(false);
+    expect(pocket.metadataTitles.some((t) => /answer:/i.test(t))).toBe(false);
+    expect(pocket.metadataTitles[pocket.metadataTitles.length - 1]).toBe(
+      fullAnswerTitle,
+    );
   });
 });

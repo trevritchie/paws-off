@@ -75,56 +75,87 @@ describe('Paws Off App UI', () => {
     expect(soundButtons[0].textContent).toMatch(/velvet pad/i);
     expect(soundButtons[0]).toHaveAttribute('aria-pressed', 'true');
     expect(
-      screen.getByRole('button', { name: /felt piano/i }),
+      within(soundGroup).getByRole('button', { name: /felt piano/i }),
     ).toHaveAttribute('aria-pressed', 'false');
     expect(
-      screen.getByRole('button', { name: /warm rhodes/i }),
+      within(soundGroup).getByRole('button', { name: /warm rhodes/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /soft vibes/i }),
+      within(soundGroup).getByRole('button', { name: /soft vibes/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /grand piano.*salamander acoustic/i }),
+      within(soundGroup).getByRole('button', {
+        name: /grand piano.*salamander acoustic/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /warm strings.*bowed ensemble/i }),
+      within(soundGroup).getByRole('button', {
+        name: /warm strings.*bowed ensemble/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /chamber cello.*rich bowed cello/i }),
+      within(soundGroup).getByRole('button', {
+        name: /chamber cello.*rich bowed cello/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /french horn.*warm brass choir/i }),
+      within(soundGroup).getByRole('button', {
+        name: /french horn.*warm brass choir/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /concert harp.*plucked acoustic/i }),
+      within(soundGroup).getByRole('button', {
+        name: /concert harp.*plucked acoustic/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /nylon guitar.*classical acoustic/i }),
+      within(soundGroup).getByRole('button', {
+        name: /nylon guitar.*classical acoustic/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /clean guitar.*warm jazz electric/i }),
+      within(soundGroup).getByRole('button', {
+        name: /clean guitar.*warm jazz electric/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /harmonium.*meditative reed organ/i }),
+      within(soundGroup).getByRole('button', {
+        name: /harmonium.*meditative reed organ/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /pipe organ.*warm cathedral/i }),
+      within(soundGroup).getByRole('button', {
+        name: /pipe organ.*warm cathedral/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /satb choir.*ooh & ahh voices/i }),
+      within(soundGroup).getByRole('button', {
+        name: /satb choir.*ooh & ahh voices/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /wurlitzer ep.*warm vintage reed/i }),
+      within(soundGroup).getByRole('button', {
+        name: /wurlitzer ep.*warm vintage reed/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /juno poly.*analog stereo synth/i }),
+      within(soundGroup).getByRole('button', {
+        name: /juno poly.*analog stereo synth/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /jazz organ.*warm b3 drawbars/i }),
+      within(soundGroup).getByRole('button', {
+        name: /jazz organ.*warm b3 drawbars/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /glass celesta.*crystalline & bell-like/i }),
+      within(soundGroup).getByRole('button', {
+        name: /glass celesta.*crystalline & bell-like/i,
+      }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /melody sound/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.queryByRole('button', { name: /electric piano/i }),
     ).not.toBeInTheDocument();
@@ -565,7 +596,13 @@ describe('Paws Off App UI', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    // Defaults OFF with sub-controls hidden
+    // Defaults OFF with sub-controls hidden inside Allowed chords
+    const allowedChordsRegion = screen.getByRole('region', {
+      name: /allowed chords/i,
+    });
+    const soundAndMixRegion = screen.getByRole('region', {
+      name: /sound and mix/i,
+    });
     const melodyToggle = screen.getByRole('switch', {
       name: /melody over chords/i,
     });
@@ -582,14 +619,21 @@ describe('Paws Off App UI', () => {
 
     await user.click(melodyToggle);
     expect(melodyToggle).toHaveAttribute('aria-checked', 'true');
-    const tensionsToggle = screen.getByRole('switch', {
+    const tensionsToggle = within(allowedChordsRegion).getByRole('switch', {
       name: /allow tensions/i,
     });
     expect(tensionsToggle).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByLabelText(/melody volume/i)).toBeInTheDocument();
+    expect(
+      within(allowedChordsRegion).getByLabelText(/melody volume/i),
+    ).toBeInTheDocument();
 
-    // Melody sound drawer shows auto-paired Clean Guitar and allows manual override
-    const melodySoundBtn = screen.getByRole('button', { name: /melody sound/i });
+    // Melody sound drawer lives under Sound and mix (not Allowed chords)
+    expect(
+      within(allowedChordsRegion).queryByRole('button', { name: /melody sound/i }),
+    ).not.toBeInTheDocument();
+    const melodySoundBtn = within(soundAndMixRegion).getByRole('button', {
+      name: /melody sound/i,
+    });
     expect(melodySoundBtn).toHaveAttribute('aria-expanded', 'false');
     expect(within(melodySoundBtn).getByText('Clean Guitar')).toBeInTheDocument();
 

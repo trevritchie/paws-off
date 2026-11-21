@@ -1,6 +1,5 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { getInstrumentPreset, INSTRUMENT_PRESETS } from '../audio/instruments';
 import {
   ALL_SECONDARY_DOMINANT_IDS,
   CHORD_DEFS,
@@ -23,7 +22,6 @@ import type {
   InversionNotation,
   SecondaryDominantId,
   SeventhInversion,
-  TimbreId,
   TriadInversion,
 } from '../types/settings';
 import { SwitchRow } from './SwitchRow';
@@ -41,8 +39,6 @@ interface ChordSelectorProps {
   melodyEnabled: boolean;
   melodyAllowTensions: boolean;
   melodyVolume: number;
-  melodyTimbre: TimbreId;
-  isRunning: boolean;
   announceTriadQuality: boolean;
   playChordsBehindAnswer: boolean;
   onChange: (next: DiatonicChordId[]) => void;
@@ -59,8 +55,6 @@ interface ChordSelectorProps {
   onToggleMelody: (enabled: boolean) => void;
   onToggleMelodyAllowTensions: (enabled: boolean) => void;
   onChangeMelodyVolume: (volume: number) => void;
-  onChangeMelodyTimbre: (timbre: TimbreId) => void;
-  onPreviewMelodySound: (timbre?: TimbreId) => void;
   onToggleTriadQuality: (enabled: boolean) => void;
   onToggleChordsBehindAnswer: (enabled: boolean) => void;
 }
@@ -141,8 +135,6 @@ export function ChordSelector({
   melodyEnabled,
   melodyAllowTensions,
   melodyVolume,
-  melodyTimbre,
-  isRunning,
   announceTriadQuality,
   playChordsBehindAnswer,
   onChange,
@@ -157,8 +149,6 @@ export function ChordSelector({
   onToggleMelody,
   onToggleMelodyAllowTensions,
   onChangeMelodyVolume,
-  onChangeMelodyTimbre,
-  onPreviewMelodySound,
   onToggleTriadQuality,
   onToggleChordsBehindAnswer,
 }: ChordSelectorProps) {
@@ -173,7 +163,6 @@ export function ChordSelector({
   const [secSeventhsOverridesOpen, setSecSeventhsOverridesOpen] =
     useState(false);
   const [invGuardNotice, setInvGuardNotice] = useState(false);
-  const [melodySoundOpen, setMelodySoundOpen] = useState(false);
 
   const selectedSet = new Set<ChordId>(allowedChords);
   const selectedSecondarySet = new Set<ChordId>(allowedSecondaryDominants);
@@ -1274,74 +1263,6 @@ export function ChordSelector({
                 onChange={(e) => onChangeMelodyVolume(Number(e.target.value))}
                 className="studio-slider mt-1"
               />
-            </div>
-
-            <div className="border-t border-[#2B323B] pt-2">
-              <button
-                type="button"
-                aria-expanded={melodySoundOpen}
-                aria-controls="melody-sound-grid"
-                onClick={() => setMelodySoundOpen((prev) => !prev)}
-                className="flex min-h-[36px] w-full items-center justify-between gap-2 rounded-lg text-left text-xs font-medium text-[#F3EFE6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4]"
-              >
-                <span>Melody sound</span>
-                <span className="flex items-center gap-1.5 text-[11px] text-[#9CA3AE]">
-                  <span>{getInstrumentPreset(melodyTimbre).label}</span>
-                  <ChevronDown
-                    className={`h-3.5 w-3.5 transition-transform ${
-                      melodySoundOpen ? 'rotate-180' : ''
-                    }`}
-                    aria-hidden="true"
-                  />
-                </span>
-              </button>
-
-              {melodySoundOpen && (
-                <div className="mt-2">
-                  {!isRunning && (
-                    <p className="mb-1.5 text-[11px] text-[#9CA3AE]">
-                      Auto-matched to chord sound · tap any preset to override
-                    </p>
-                  )}
-                  <div
-                    id="melody-sound-grid"
-                    className="grid grid-cols-2 gap-1.5"
-                    role="group"
-                    aria-label="Melody sound"
-                  >
-                    {INSTRUMENT_PRESETS.map((option) => {
-                      const active = melodyTimbre === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          aria-pressed={active}
-                          onClick={() => {
-                            onChangeMelodyTimbre(option.id);
-                            onPreviewMelodySound(option.id);
-                          }}
-                          className={`flex min-h-[44px] flex-col items-start justify-center rounded-xl border px-2.5 py-1.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4] ${
-                            active
-                              ? 'border-[#4FB3A4] bg-[#4FB3A4]/20 text-[#4FB3A4]'
-                              : 'border-[#343C47] bg-[#252B33] text-[#F3EFE6] hover:border-[#495463]'
-                          }`}
-                        >
-                          <span className="text-xs font-semibold leading-tight">
-                            {option.label}
-                          </span>
-                          <span
-                            className={`mt-0.5 text-[10px] leading-tight ${
-                              active ? 'text-[#4FB3A4]/85' : 'text-[#9CA3AE]'
-                            }`}
-                          >
-                            {option.subtitle}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}

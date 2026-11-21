@@ -1,5 +1,7 @@
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { formatDroneNoteName } from '../audio/drone';
-import { INSTRUMENT_PRESETS } from '../audio/instruments';
+import { getInstrumentPreset, INSTRUMENT_PRESETS } from '../audio/instruments';
 import { AMBIENCE_OPTIONS } from '../audio/reverb';
 import { getScaleDegreePitchClass } from '../music/chords';
 import {
@@ -34,6 +36,7 @@ interface SoundAndMixProps {
     voicePanning?: boolean,
     voicePanningMode?: VoicePanningMode,
   ) => void;
+  onPreviewMelodySound: (timbre?: TimbreId) => void;
 }
 
 export function SoundAndMix({
@@ -42,7 +45,10 @@ export function SoundAndMix({
   isRunning,
   onUpdate,
   onPreviewSound,
+  onPreviewMelodySound,
 }: SoundAndMixProps) {
+  const [melodySoundOpen, setMelodySoundOpen] = useState(false);
+
   const droneResolvedPitch = formatDroneNoteName(
     getScaleDegreePitchClass(activeKey, settings.droneScaleDegree),
     settings.droneOctave,
@@ -54,10 +60,10 @@ export function SoundAndMix({
       aria-label="Sound and mix"
       className="mt-3 space-y-4 rounded-2xl border border-[#2B323B] bg-[#1B1F24] p-4"
     >
-      {/* Sound preset grid */}
+      {/* Sound preset grids */}
       <div>
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[#F3EFE6]">Sound</h2>
+          <h2 className="text-sm font-semibold text-[#F3EFE6]">Chord sound</h2>
           {!isRunning && (
             <span className="text-xs text-[#9CA3AE]">Tap to preview</span>
           )}
@@ -105,6 +111,82 @@ export function SoundAndMix({
               </button>
             );
           })}
+        </div>
+
+        {/* Collapsible Melody sound selector grouped right below Chord sound */}
+        <div className="mt-3 border-t border-[#2B323B] pt-2.5">
+          <button
+            type="button"
+            aria-expanded={melodySoundOpen}
+            aria-controls="melody-sound-grid"
+            onClick={() => setMelodySoundOpen((prev) => !prev)}
+            className="flex min-h-[40px] w-full items-center justify-between gap-2 rounded-lg text-left text-sm font-semibold text-[#F3EFE6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4]"
+          >
+            <span>Melody sound</span>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-[#9CA3AE]">
+              <span>{getInstrumentPreset(settings.melodyTimbre).label}</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${
+                  melodySoundOpen ? 'rotate-180' : ''
+                }`}
+                aria-hidden="true"
+              />
+            </span>
+          </button>
+
+          {melodySoundOpen && (
+            <div className="mt-2">
+              {!settings.melodyEnabled ? (
+                <p className="mb-1.5 text-xs text-[#9CA3AE]">
+                  Turn on &ldquo;Melody over chords&rdquo; above to hear during
+                  sessions
+                </p>
+              ) : (
+                !isRunning && (
+                  <p className="mb-1.5 text-xs text-[#9CA3AE]">
+                    Auto-matched to chord sound · tap any preset to override
+                  </p>
+                )
+              )}
+              <div
+                id="melody-sound-grid"
+                className="grid grid-cols-2 gap-1.5"
+                role="group"
+                aria-label="Melody sound"
+              >
+                {INSTRUMENT_PRESETS.map((option) => {
+                  const active = settings.melodyTimbre === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        onUpdate({ melodyTimbre: option.id });
+                        onPreviewMelodySound(option.id);
+                      }}
+                      className={`flex min-h-[48px] flex-col items-start justify-center rounded-xl border px-3 py-1.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4] ${
+                        active
+                          ? 'border-[#4FB3A4] bg-[#4FB3A4]/20 text-[#4FB3A4]'
+                          : 'border-[#343C47] bg-[#252B33] text-[#F3EFE6] hover:border-[#495463]'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold leading-tight">
+                        {option.label}
+                      </span>
+                      <span
+                        className={`mt-0.5 text-[11px] leading-tight ${
+                          active ? 'text-[#4FB3A4]/85' : 'text-[#9CA3AE]'
+                        }`}
+                      >
+                        {option.subtitle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

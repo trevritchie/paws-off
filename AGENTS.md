@@ -11,7 +11,7 @@
 
 ```bash
 npm run dev       # Local Vite dev server
-npm test          # Vitest suite (4 suites, 65 tests)
+npm test          # Vitest suite (4 suites, 66 tests)
 npm run build     # Type-check (tsc -b) + Vite production build
 ```
 
