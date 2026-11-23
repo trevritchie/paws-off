@@ -84,7 +84,7 @@ export class PolySynth implements SynthEngine {
   private outputProfileListeners = new Set<(info: ResolvedOutputInfo) => void>();
   private isDucked = false;
   private chordVolume = 0.75;
-  private melodyVolume = 0.75;
+  private melodyVolume = 0.5;
   private voiceVolume = 0.65;
   private ambience: AmbienceMode = 'warm-room';
   private outputProfile: AudioOutputProfile = 'auto';

@@ -37,7 +37,7 @@ class FakeSynth implements SynthEngine {
     currentTime: number;
   }[] = [];
   chordVolume = 0.75;
-  melodyVolume = 0.75;
+  melodyVolume = 0.5;
   voiceVolume = 0.65;
   ambience: AmbienceMode = 'warm-room';
   outputProfile: AudioOutputProfile = 'auto';

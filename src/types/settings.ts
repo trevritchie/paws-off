@@ -193,7 +193,7 @@ export const DEFAULT_SETTINGS: SessionSettings = {
   musicalInversionLeading: true,
   melodyEnabled: false,
   melodyAllowTensions: false,
-  melodyVolume: 0.75,
+  melodyVolume: 0.5,
   melodyTimbre: 'grand-piano',
   bpm: 120,
   progressionLength: 4,

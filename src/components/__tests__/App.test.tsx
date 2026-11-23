@@ -776,7 +776,7 @@ describe('Paws Off App UI', () => {
     );
     expect(saved.melodyEnabled).toBe(true);
     expect(saved.melodyAllowTensions).toBe(true);
-    expect(saved.melodyVolume).toBe(0.75);
+    expect(saved.melodyVolume).toBe(0.5);
     expect(saved.timbre).toBe('warm-rhodes');
     expect(saved.melodyTimbre).toBe('concert-harp');
 

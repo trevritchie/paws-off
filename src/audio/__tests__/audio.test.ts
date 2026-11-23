@@ -893,7 +893,7 @@ describe('meditative instruments & ambience', () => {
     const fresh = sanitizeSettings({});
     expect(fresh.melodyEnabled).toBe(false);
     expect(fresh.melodyAllowTensions).toBe(false);
-    expect(fresh.melodyVolume).toBe(0.75);
+    expect(fresh.melodyVolume).toBe(0.5);
     expect(fresh.melodyTimbre).toBe('grand-piano');
 
     // Missing melodyTimbre matches sanitized chord timbre by default
