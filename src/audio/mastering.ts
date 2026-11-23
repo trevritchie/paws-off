@@ -69,7 +69,7 @@ export const OUTPUT_PROFILE_UI_OPTIONS: readonly OutputProfileUiOption[] = [
     id: 'auto',
     label: 'Auto',
     description:
-      'Detects Bluetooth and desktop outputs; uses Phone Speaker on mobile',
+      'Detects AirPods, CarPlay, Bluetooth, and desktop outputs; uses Phone Speaker on mobile',
   },
   {
     id: 'phone-speaker',
@@ -83,38 +83,61 @@ export const OUTPUT_PROFILE_UI_OPTIONS: readonly OutputProfileUiOption[] = [
   },
 ];
 
+// Built-in iPhone/iPad speakers report ~10-30 ms while wired USB CarPlay reports ~50-70 ms
+// and AirPods / wireless CarPlay report >= 100 ms.
+export const IOS_EXTERNAL_LATENCY_THRESHOLD_SEC = 0.04;
+export const DEFAULT_EXTERNAL_LATENCY_THRESHOLD_SEC = 0.1;
+
+export type OutputDetectionReason =
+  | 'manual'
+  | 'device-label'
+  | 'latency'
+  | 'desktop'
+  | 'mobile-default';
+
+export interface ResolvedOutputInfo {
+  profile: ResolvedOutputProfile;
+  reason: OutputDetectionReason;
+  outputLatencyMs: number | null;
+  deviceLabel: string | null;
+}
+
 export interface AutoDetectEnvironment {
   outputLatency?: number;
   userAgent?: string;
+  maxTouchPoints?: number;
   isMobileHint?: boolean;
   coarsePointer?: boolean;
 }
 
 const EXTERNAL_AUDIO_LABEL_RE =
-  /headphone|headset|airpod|buds|bluetooth|earbud|beats|bose|sony|sennheiser|aux|external|usb|hdmi/i;
+  /headphone|headset|airpod|earpod|earbud|buds|bluetooth|beats|bose|sony|sennheiser|jbl|shokz|carplay|car[\s_-]?audio|car[\s_-]?stereo|car[\s_-]?kit|android[\s_-]?auto|automotive|vehicle|hands[\s_-]?free|handsfree|display[\s_-]?audio|infotainment|hondalink|uconnect|\bsync\b|airplay|dock|line[\s_-]?out|aux|external|usb|hdmi|\bdac\b/i;
+
+function readMeasuredLatencySec(rawLatency: unknown): number | null {
+  return typeof rawLatency === 'number' &&
+    Number.isFinite(rawLatency) &&
+    rawLatency > 0
+    ? rawLatency
+    : null;
+}
 
 /**
  * Best-effort synchronous resolution of `'auto'` output mode using output
- * latency (Bluetooth >= 100 ms) and device form factor without prompting for
- * microphone permissions.
+ * latency (40 ms on iOS/iPadOS for wired CarPlay/AirPods, 100 ms elsewhere)
+ * and device form factor without prompting for microphone permissions.
  */
-export function resolveAutoOutputProfile(
+export function resolveAutoOutputInfo(
   env: AutoDetectEnvironment = {},
-): ResolvedOutputProfile {
-  const outputLatency = env.outputLatency;
-  if (
-    typeof outputLatency === 'number' &&
-    Number.isFinite(outputLatency) &&
-    outputLatency >= 0.1
-  ) {
-    return 'headphones';
-  }
-
+): ResolvedOutputInfo {
   const nav =
     typeof navigator !== 'undefined'
-      ? (navigator as Navigator & { userAgentData?: { mobile?: boolean } })
+      ? (navigator as Navigator & {
+          userAgentData?: { mobile?: boolean };
+          maxTouchPoints?: number;
+        })
       : null;
   const userAgent = env.userAgent ?? nav?.userAgent ?? '';
+  const maxTouchPoints = env.maxTouchPoints ?? nav?.maxTouchPoints ?? 0;
   const isMobileHint = env.isMobileHint ?? nav?.userAgentData?.mobile;
   const coarsePointer =
     env.coarsePointer ??
@@ -122,25 +145,64 @@ export function resolveAutoOutputProfile(
       ? window.matchMedia('(pointer: coarse)').matches
       : false);
 
+  const isAppleMobile =
+    /iPhone|iPad|iPod/i.test(userAgent) ||
+    (/Macintosh/i.test(userAgent) && maxTouchPoints > 1);
   const isMobile =
     isMobileHint === true ||
-    /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) ||
+    isAppleMobile ||
+    /Android|Mobile/i.test(userAgent) ||
     coarsePointer === true;
 
-  return isMobile ? 'phone-speaker' : 'headphones';
+  const measuredLatencySec = readMeasuredLatencySec(env.outputLatency);
+  const outputLatencyMs =
+    measuredLatencySec !== null ? Math.round(measuredLatencySec * 1000) : null;
+  const thresholdSec = isAppleMobile
+    ? IOS_EXTERNAL_LATENCY_THRESHOLD_SEC
+    : DEFAULT_EXTERNAL_LATENCY_THRESHOLD_SEC;
+
+  if (measuredLatencySec !== null && measuredLatencySec >= thresholdSec) {
+    return {
+      profile: 'headphones',
+      reason: 'latency',
+      outputLatencyMs,
+      deviceLabel: null,
+    };
+  }
+
+  if (!isMobile) {
+    return {
+      profile: 'headphones',
+      reason: 'desktop',
+      outputLatencyMs,
+      deviceLabel: null,
+    };
+  }
+
+  return {
+    profile: 'phone-speaker',
+    reason: 'mobile-default',
+    outputLatencyMs,
+    deviceLabel: null,
+  };
+}
+
+export function resolveAutoOutputProfile(
+  env: AutoDetectEnvironment = {},
+): ResolvedOutputProfile {
+  return resolveAutoOutputInfo(env).profile;
 }
 
 /**
  * Queries exposed audiooutput labels (when already available without calling
- * getUserMedia) plus AudioContext outputLatency to pick the best profile.
+ * getUserMedia) plus AudioContext outputLatency to pick the best profile and
+ * explain why Auto selected it.
  */
-export async function detectOutputProfile(
+export async function detectOutputProfileInfo(
   ctx: AudioContext | null,
-): Promise<ResolvedOutputProfile> {
-  const ctxWithLatency = ctx as (AudioContext & { outputLatency?: number }) | null;
-  const baseEnv: AutoDetectEnvironment = {
-    outputLatency: ctxWithLatency?.outputLatency,
-  };
+): Promise<ResolvedOutputInfo> {
+  const readLatency = () =>
+    (ctx as (AudioContext & { outputLatency?: number }) | null)?.outputLatency;
 
   if (
     typeof navigator !== 'undefined' &&
@@ -149,22 +211,67 @@ export async function detectOutputProfile(
   ) {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const hasExternalOutput = devices.some(
+      const matched = devices.find(
         (d) =>
           d.kind === 'audiooutput' &&
           typeof d.label === 'string' &&
           d.label.length > 0 &&
           EXTERNAL_AUDIO_LABEL_RE.test(d.label),
       );
-      if (hasExternalOutput) {
-        return 'headphones';
+      if (matched) {
+        const measuredLatencySec = readMeasuredLatencySec(readLatency());
+        return {
+          profile: 'headphones',
+          reason: 'device-label',
+          outputLatencyMs:
+            measuredLatencySec !== null
+              ? Math.round(measuredLatencySec * 1000)
+              : null,
+          deviceLabel: matched.label.trim(),
+        };
       }
     } catch {
       // Ignore restricted mediaDevices errors and fall back to heuristics.
     }
   }
 
-  return resolveAutoOutputProfile(baseEnv);
+  return resolveAutoOutputInfo({ outputLatency: readLatency() });
+}
+
+export async function detectOutputProfile(
+  ctx: AudioContext | null,
+): Promise<ResolvedOutputProfile> {
+  return (await detectOutputProfileInfo(ctx)).profile;
+}
+
+export function formatAutoOutputHint(info: ResolvedOutputInfo): string {
+  if (info.profile === 'headphones') {
+    if (info.reason === 'device-label') {
+      const cleaned = (info.deviceLabel ?? '')
+        .replace(/^(default|communications)\s*[-:]\s*/i, '')
+        .trim();
+      if (cleaned.length > 0) {
+        const display =
+          cleaned.length > 28 ? `${cleaned.slice(0, 25).trimEnd()}...` : cleaned;
+        return `Currently using: Headphones (${display})`;
+      }
+      return 'Currently using: Headphones (external output)';
+    }
+    if (info.reason === 'latency') {
+      return info.outputLatencyMs !== null
+        ? `Currently using: Headphones (external output · ${info.outputLatencyMs} ms)`
+        : 'Currently using: Headphones (external output)';
+    }
+    if (info.reason === 'desktop') {
+      return 'Currently using: Headphones (desktop)';
+    }
+    return 'Currently using: Headphones';
+  }
+
+  if (info.outputLatencyMs !== null) {
+    return `Currently using: Phone Speaker (built-in output · ${info.outputLatencyMs} ms)`;
+  }
+  return 'Currently using: Phone Speaker (mobile default · checks when audio plays)';
 }
 
 /**

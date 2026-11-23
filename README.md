@@ -25,7 +25,7 @@ npm run dev
 ## Testing & Building
 
 ```bash
-npm test          # Run Vitest unit & component tests (67 tests)
+npm test          # Run Vitest unit & component tests (68 tests)
 npm run build     # Type-check and build production bundle to dist/
 ```
 

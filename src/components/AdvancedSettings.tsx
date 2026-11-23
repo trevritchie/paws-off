@@ -1,21 +1,29 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { OUTPUT_PROFILE_UI_OPTIONS } from '../audio/mastering';
+import {
+  formatAutoOutputHint,
+  OUTPUT_PROFILE_UI_OPTIONS,
+  type ResolvedOutputInfo,
+} from '../audio/mastering';
 import type { SpeechVoiceOption } from '../engine/speech';
 import type { AudioOutputProfile, SessionSettings } from '../types/settings';
 
 interface AdvancedSettingsProps {
   settings: SessionSettings;
+  resolvedOutputInfo: ResolvedOutputInfo;
   voices: SpeechVoiceOption[];
   onUpdate: (patch: Partial<SessionSettings>) => void;
   onPreviewOutputProfile?: (profile: AudioOutputProfile) => void;
+  onRefreshOutputProfile?: () => void;
 }
 
 export function AdvancedSettings({
   settings,
+  resolvedOutputInfo,
   voices,
   onUpdate,
   onPreviewOutputProfile,
+  onRefreshOutputProfile,
 }: AdvancedSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -28,7 +36,13 @@ export function AdvancedSettings({
         type="button"
         aria-expanded={isOpen}
         aria-controls="advanced-settings-panel"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() =>
+          setIsOpen((prev) => {
+            const next = !prev;
+            if (next) onRefreshOutputProfile?.();
+            return next;
+          })
+        }
         className="flex min-h-[52px] w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold text-[#F3EFE6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C]"
       >
         <span>Advanced settings</span>
@@ -243,7 +257,17 @@ export function AdvancedSettings({
                   );
                 })}
               </div>
-              <p className="mt-1.5 text-xs text-[#9CA3AE]">
+              {settings.outputProfile === 'auto' && (
+                <p
+                  data-testid="auto-output-hint"
+                  className="mt-1.5 text-xs font-medium text-[#4FB3A4]"
+                >
+                  {formatAutoOutputHint(resolvedOutputInfo)}
+                </p>
+              )}
+              <p
+                className={`${settings.outputProfile === 'auto' ? 'mt-1' : 'mt-1.5'} text-xs text-[#9CA3AE]`}
+              >
                 {
                   OUTPUT_PROFILE_UI_OPTIONS.find(
                     (o) => o.id === settings.outputProfile,

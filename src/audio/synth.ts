@@ -14,9 +14,10 @@ import {
   type VoiceSharedResources,
 } from './instruments/types';
 import {
-  detectOutputProfile,
+  detectOutputProfileInfo,
   MasterOutputChain,
-  resolveAutoOutputProfile,
+  resolveAutoOutputInfo,
+  type ResolvedOutputInfo,
 } from './mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from './reverb';
 import { AcousticSampleBank, isAcousticSampleTimbre } from './sampleBank';
@@ -42,6 +43,9 @@ export interface SynthEngine {
   setVoiceVolume(volume: number): void;
   setAmbience(mode: AmbienceMode): void;
   setOutputProfile?(profile: AudioOutputProfile): void;
+  getResolvedOutputInfo?(): ResolvedOutputInfo;
+  onOutputProfileChange?(cb: (info: ResolvedOutputInfo) => void): () => void;
+  refreshOutputProfile?(): void;
   preloadTimbre?(timbre: TimbreId): Promise<void>;
   onStateChange(cb: (state: string) => void): () => void;
   dispose(): void;
@@ -77,37 +81,192 @@ export class PolySynth implements SynthEngine {
 
   private activeVoices = new Set<InternalVoiceEntry>();
   private stateListeners = new Set<(state: string) => void>();
+  private outputProfileListeners = new Set<(info: ResolvedOutputInfo) => void>();
   private isDucked = false;
   private chordVolume = 0.75;
   private melodyVolume = 0.75;
   private voiceVolume = 0.65;
   private ambience: AmbienceMode = 'warm-room';
   private outputProfile: AudioOutputProfile = 'auto';
-  private resolvedOutputProfile: ResolvedOutputProfile = 'phone-speaker';
+  private resolvedOutputInfo: ResolvedOutputInfo = resolveAutoOutputInfo();
+  private resolvedOutputProfile: ResolvedOutputProfile =
+    this.resolvedOutputInfo.profile;
+  private outputDetectSeq = 0;
+  private outputSettleTimers: number[] = [];
+  private outputPollTimer: number | null = null;
   private stateChangeBound: (() => void) | null = null;
   private deviceChangeBound: (() => void) | null = null;
+  private sinkChangeBound: (() => void) | null = null;
+  private visibilityChangeBound: (() => void) | null = null;
+  private audioSessionChangeBound: (() => void) | null = null;
 
-  private resolveSyncProfile(ctx: AudioContext): ResolvedOutputProfile {
-    if (this.outputProfile !== 'auto') {
-      return this.outputProfile;
-    }
-    const latency = (ctx as AudioContext & { outputLatency?: number })
-      .outputLatency;
-    return resolveAutoOutputProfile({ outputLatency: latency });
+  private readMeasuredLatencyMs(ctx: AudioContext | null): number | null {
+    const latency = (ctx as (AudioContext & { outputLatency?: number }) | null)
+      ?.outputLatency;
+    return typeof latency === 'number' &&
+      Number.isFinite(latency) &&
+      latency > 0
+      ? Math.round(latency * 1000)
+      : null;
   }
 
-  private resolveAndApplyOutputProfile(ctx: AudioContext): void {
-    const syncResolved = this.resolveSyncProfile(ctx);
-    this.resolvedOutputProfile = syncResolved;
-    this.masterChain?.setProfile(syncResolved, ctx.currentTime);
+  private resolveSyncInfo(ctx: AudioContext | null): ResolvedOutputInfo {
+    if (this.outputProfile !== 'auto') {
+      return {
+        profile: this.outputProfile,
+        reason: 'manual',
+        outputLatencyMs: this.readMeasuredLatencyMs(ctx),
+        deviceLabel: null,
+      };
+    }
+    const latency = (ctx as (AudioContext & { outputLatency?: number }) | null)
+      ?.outputLatency;
+    return resolveAutoOutputInfo({ outputLatency: latency });
+  }
+
+  private applyResolvedOutputInfo(
+    next: ResolvedOutputInfo,
+    ctx: AudioContext | null,
+    forceApplyChain = false,
+  ): void {
+    if (forceApplyChain || next.profile !== this.resolvedOutputProfile) {
+      this.resolvedOutputProfile = next.profile;
+      this.masterChain?.setProfile(next.profile, ctx?.currentTime);
+    }
+
+    const prev = this.resolvedOutputInfo;
+    const msChanged =
+      (prev.outputLatencyMs === null) !== (next.outputLatencyMs === null) ||
+      (prev.outputLatencyMs !== null &&
+        next.outputLatencyMs !== null &&
+        Math.abs(prev.outputLatencyMs - next.outputLatencyMs) >= 5);
+    const infoChanged =
+      prev.profile !== next.profile ||
+      prev.reason !== next.reason ||
+      prev.deviceLabel !== next.deviceLabel ||
+      msChanged;
+
+    if (infoChanged) {
+      this.resolvedOutputInfo = next;
+      const snapshot = { ...next };
+      for (const listener of this.outputProfileListeners) {
+        listener(snapshot);
+      }
+    }
+  }
+
+  private clearOutputSettleTimers(): void {
+    if (typeof window === 'undefined') return;
+    for (const id of this.outputSettleTimers) {
+      window.clearTimeout(id);
+    }
+    this.outputSettleTimers = [];
+  }
+
+  private stopOutputPolling(): void {
+    if (this.outputPollTimer !== null && typeof window !== 'undefined') {
+      window.clearInterval(this.outputPollTimer);
+    }
+    this.outputPollTimer = null;
+  }
+
+  private checkLatencyOnly(ctx: AudioContext): void {
+    if (this.ctx !== ctx || this.outputProfile !== 'auto') return;
+    if (this.resolvedOutputInfo.reason === 'device-label') return;
+    const next = this.resolveSyncInfo(ctx);
+    this.applyResolvedOutputInfo(next, ctx);
+  }
+
+  private scheduleOutputSettleChecks(ctx: AudioContext): void {
+    if (typeof window === 'undefined') return;
+    this.clearOutputSettleTimers();
+    const fastId = window.setTimeout(() => {
+      if (this.ctx === ctx && this.outputProfile === 'auto') {
+        this.checkLatencyOnly(ctx);
+      }
+    }, 250);
+    const fullId = window.setTimeout(() => {
+      if (this.ctx === ctx && this.outputProfile === 'auto') {
+        this.resolveAndApplyOutputProfile(ctx, false);
+      }
+    }, 1000);
+    this.outputSettleTimers.push(fastId, fullId);
+  }
+
+  private syncOutputPolling(ctx: AudioContext | null): void {
+    const shouldPoll =
+      ctx !== null && ctx.state === 'running' && this.outputProfile === 'auto';
+    if (!shouldPoll) {
+      this.stopOutputPolling();
+      return;
+    }
+    if (this.outputPollTimer !== null || typeof window === 'undefined') {
+      return;
+    }
+    this.outputPollTimer = window.setInterval(() => {
+      if (
+        this.ctx !== ctx ||
+        ctx.state !== 'running' ||
+        this.outputProfile !== 'auto'
+      ) {
+        this.stopOutputPolling();
+        return;
+      }
+      this.checkLatencyOnly(ctx);
+    }, 2000);
+  }
+
+  private resolveWithoutContext(): void {
+    const seq = ++this.outputDetectSeq;
+    const syncInfo = this.resolveSyncInfo(null);
+    this.applyResolvedOutputInfo(syncInfo, null);
 
     if (this.outputProfile === 'auto') {
-      void detectOutputProfile(ctx).then((asyncResolved) => {
-        if (this.ctx !== ctx || this.outputProfile !== 'auto') return;
-        this.resolvedOutputProfile = asyncResolved;
-        this.masterChain?.setProfile(asyncResolved, ctx.currentTime);
+      void detectOutputProfileInfo(null).then((asyncInfo) => {
+        if (
+          seq !== this.outputDetectSeq ||
+          this.outputProfile !== 'auto' ||
+          this.ctx !== null
+        ) {
+          return;
+        }
+        this.applyResolvedOutputInfo(asyncInfo, null);
       });
     }
+  }
+
+  private resolveAndApplyOutputProfile(
+    ctx: AudioContext,
+    scheduleSettle = false,
+  ): void {
+    const seq = ++this.outputDetectSeq;
+    if (this.outputProfile !== 'auto') {
+      this.clearOutputSettleTimers();
+      this.stopOutputPolling();
+      this.applyResolvedOutputInfo(this.resolveSyncInfo(ctx), ctx, true);
+      return;
+    }
+
+    if (this.resolvedOutputInfo.reason !== 'device-label') {
+      const syncInfo = this.resolveSyncInfo(ctx);
+      this.applyResolvedOutputInfo(syncInfo, ctx, true);
+    }
+
+    void detectOutputProfileInfo(ctx).then((asyncInfo) => {
+      if (
+        seq !== this.outputDetectSeq ||
+        this.ctx !== ctx ||
+        this.outputProfile !== 'auto'
+      ) {
+        return;
+      }
+      this.applyResolvedOutputInfo(asyncInfo, ctx, true);
+    });
+
+    if (scheduleSettle) {
+      this.scheduleOutputSettleChecks(ctx);
+    }
+    this.syncOutputPolling(ctx);
   }
 
   private getOrCreateIr(
@@ -186,9 +345,9 @@ export class PolySynth implements SynthEngine {
     const voiceBus = ctx.createGain();
     voiceBus.gain.value = voiceSliderToGain(this.voiceVolume);
 
-    const initialResolved = this.resolveSyncProfile(ctx);
-    this.resolvedOutputProfile = initialResolved;
-    const masterChain = new MasterOutputChain(ctx, initialResolved);
+    const initialInfo = this.resolveSyncInfo(ctx);
+    const masterChain = new MasterOutputChain(ctx, initialInfo.profile);
+    this.applyResolvedOutputInfo(initialInfo, ctx, false);
 
     chordBus.connect(chordLevelGain);
     chordLevelGain.connect(warmthFilter);
@@ -208,14 +367,30 @@ export class PolySynth implements SynthEngine {
 
     const onStateChange = () => {
       const state = ctx.state as string;
+      this.syncOutputPolling(ctx);
       if (state === 'running' && this.outputProfile === 'auto') {
-        this.resolveAndApplyOutputProfile(ctx);
+        this.resolveAndApplyOutputProfile(ctx, true);
       }
       for (const listener of this.stateListeners) {
         listener(state);
       }
     };
     ctx.addEventListener('statechange', onStateChange);
+
+    const onSinkChange = () => {
+      if (this.ctx === ctx && this.outputProfile === 'auto') {
+        this.resolveAndApplyOutputProfile(ctx, true);
+      }
+    };
+    try {
+      (ctx as unknown as EventTarget).addEventListener?.(
+        'sinkchange',
+        onSinkChange,
+      );
+      this.sinkChangeBound = onSinkChange;
+    } catch {
+      // Ignore if AudioContext sinkchange event is unsupported.
+    }
 
     if (
       typeof navigator !== 'undefined' &&
@@ -224,7 +399,7 @@ export class PolySynth implements SynthEngine {
     ) {
       const onDeviceChange = () => {
         if (this.ctx === ctx && this.outputProfile === 'auto') {
-          this.resolveAndApplyOutputProfile(ctx);
+          this.resolveAndApplyOutputProfile(ctx, true);
         }
       };
       try {
@@ -233,6 +408,39 @@ export class PolySynth implements SynthEngine {
       } catch {
         // Ignore restricted mediaDevices environments.
       }
+    }
+
+    if (typeof navigator !== 'undefined') {
+      const audioSession = (
+        navigator as Navigator & { audioSession?: EventTarget }
+      ).audioSession;
+      if (audioSession && typeof audioSession.addEventListener === 'function') {
+        const onAudioSessionChange = () => {
+          if (this.ctx === ctx && this.outputProfile === 'auto') {
+            this.resolveAndApplyOutputProfile(ctx, true);
+          }
+        };
+        try {
+          audioSession.addEventListener('statechange', onAudioSessionChange);
+          this.audioSessionChangeBound = onAudioSessionChange;
+        } catch {
+          // Ignore unsupported audioSession event listeners.
+        }
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      const onVisibilityChange = () => {
+        if (
+          this.ctx === ctx &&
+          this.outputProfile === 'auto' &&
+          document.visibilityState === 'visible'
+        ) {
+          this.resolveAndApplyOutputProfile(ctx, true);
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      this.visibilityChangeBound = onVisibilityChange;
     }
 
     this.ctx = ctx;
@@ -264,7 +472,7 @@ export class PolySynth implements SynthEngine {
     this.stateChangeBound = onStateChange;
 
     if (this.outputProfile === 'auto') {
-      this.resolveAndApplyOutputProfile(ctx);
+      this.resolveAndApplyOutputProfile(ctx, true);
     }
 
     return ctx;
@@ -281,7 +489,7 @@ export class PolySynth implements SynthEngine {
       }
     }
     if (this.outputProfile === 'auto') {
-      this.resolveAndApplyOutputProfile(ctx);
+      this.resolveAndApplyOutputProfile(ctx, true);
     }
   }
 
@@ -385,12 +593,39 @@ export class PolySynth implements SynthEngine {
 
   setOutputProfile(profile: AudioOutputProfile): void {
     this.outputProfile = profile;
-    if (!this.ctx || !this.masterChain) return;
-    this.resolveAndApplyOutputProfile(this.ctx);
+    if (this.ctx && this.masterChain) {
+      this.resolveAndApplyOutputProfile(this.ctx, profile === 'auto');
+      return;
+    }
+    this.clearOutputSettleTimers();
+    this.stopOutputPolling();
+    this.resolveWithoutContext();
+  }
+
+  refreshOutputProfile(): void {
+    if (this.ctx && this.masterChain) {
+      this.resolveAndApplyOutputProfile(
+        this.ctx,
+        this.outputProfile === 'auto',
+      );
+      return;
+    }
+    this.resolveWithoutContext();
   }
 
   getResolvedOutputProfile(): ResolvedOutputProfile {
     return this.resolvedOutputProfile;
+  }
+
+  getResolvedOutputInfo(): ResolvedOutputInfo {
+    return { ...this.resolvedOutputInfo };
+  }
+
+  onOutputProfileChange(cb: (info: ResolvedOutputInfo) => void): () => void {
+    this.outputProfileListeners.add(cb);
+    return () => {
+      this.outputProfileListeners.delete(cb);
+    };
   }
 
   async preloadTimbre(timbre: TimbreId): Promise<void> {
@@ -627,11 +862,25 @@ export class PolySynth implements SynthEngine {
   }
 
   dispose(): void {
+    this.outputDetectSeq++;
+    this.clearOutputSettleTimers();
+    this.stopOutputPolling();
     this.releaseAll(0.02);
     if (this.ctx && this.stateChangeBound) {
       this.ctx.removeEventListener('statechange', this.stateChangeBound);
     }
     this.stateChangeBound = null;
+    if (this.ctx && this.sinkChangeBound) {
+      try {
+        (this.ctx as unknown as EventTarget).removeEventListener?.(
+          'sinkchange',
+          this.sinkChangeBound,
+        );
+      } catch {
+        // Ignore
+      }
+    }
+    this.sinkChangeBound = null;
     if (
       this.deviceChangeBound &&
       typeof navigator !== 'undefined' &&
@@ -648,6 +897,34 @@ export class PolySynth implements SynthEngine {
       }
     }
     this.deviceChangeBound = null;
+    if (this.audioSessionChangeBound && typeof navigator !== 'undefined') {
+      const audioSession = (
+        navigator as Navigator & { audioSession?: EventTarget }
+      ).audioSession;
+      if (
+        audioSession &&
+        typeof audioSession.removeEventListener === 'function'
+      ) {
+        try {
+          audioSession.removeEventListener(
+            'statechange',
+            this.audioSessionChangeBound,
+          );
+        } catch {
+          // Ignore
+        }
+      }
+    }
+    this.audioSessionChangeBound = null;
+    if (this.visibilityChangeBound && typeof document !== 'undefined') {
+      document.removeEventListener(
+        'visibilitychange',
+        this.visibilityChangeBound,
+      );
+    }
+    this.visibilityChangeBound = null;
+    this.outputProfileListeners.clear();
+    this.stateListeners.clear();
     if (this.ctx && this.ctx.state !== 'closed') {
       void this.ctx.close().catch(() => {});
     }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { resolveAutoOutputInfo } from '../audio/mastering';
 import { PolySynth } from '../audio/synth';
 import { HybridVoiceAnnouncer } from '../engine/hybridAnnouncer';
 import {
@@ -36,6 +37,15 @@ function createInitialSnapshot(settings: SessionSettings): SessionSnapshot {
       (typeof window !== 'undefined' &&
         'speechSynthesis' in window &&
         typeof SpeechSynthesisUtterance !== 'undefined'),
+    resolvedOutputInfo:
+      settings.outputProfile === 'auto'
+        ? resolveAutoOutputInfo()
+        : {
+            profile: settings.outputProfile,
+            reason: 'manual',
+            outputLatencyMs: null,
+            deviceLabel: null,
+          },
   };
 }
 
@@ -147,6 +157,10 @@ export function useEarTrainer() {
     controllerRef.current?.previewMelodySound(timbre);
   }, []);
 
+  const refreshOutputProfile = useCallback(() => {
+    controllerRef.current?.refreshOutputProfile();
+  }, []);
+
   return {
     settings,
     updateSettings,
@@ -158,5 +172,6 @@ export function useEarTrainer() {
     skipToAnswer,
     previewSound,
     previewMelodySound,
+    refreshOutputProfile,
   };
 }

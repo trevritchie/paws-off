@@ -30,8 +30,11 @@ import { computeVoicePan } from '../instruments/types';
 import {
   createBassExciterCurve,
   createTransparentSoftClipCurve,
+  detectOutputProfileInfo,
+  formatAutoOutputHint,
   MasterOutputChain,
   OUTPUT_PROFILE_CONFIGS,
+  resolveAutoOutputInfo,
   resolveAutoOutputProfile,
 } from '../mastering';
 import { AMBIENCE_CONFIGS, createAmbienceImpulseResponse } from '../reverb';
@@ -1273,16 +1276,74 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
     chain.dispose();
   });
 
-  it('resolves Auto output profile from outputLatency and device form factor', () => {
+  it('resolves Auto output profile for CarPlay, AirPods, iPhone speaker, Android, and desktop, plus formatted hints', async () => {
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X)',
+        coarsePointer: true,
+        outputLatency: 0.02,
+      }),
+    ).toEqual({
+      profile: 'phone-speaker',
+      reason: 'mobile-default',
+      outputLatencyMs: 20,
+      deviceLabel: null,
+    });
     expect(
       resolveAutoOutputProfile({
-        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X)',
         coarsePointer: true,
         outputLatency: 0.02,
       }),
     ).toBe('phone-speaker');
 
-    // Bluetooth wireless latency (>= 100ms) switches mobile to Headphones profile
+    // Wired CarPlay on iPhone (~50-70 ms AVAudioSession.Port.carAudio) clears 40 ms iOS threshold
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X)',
+        coarsePointer: true,
+        outputLatency: 0.055,
+      }),
+    ).toEqual({
+      profile: 'headphones',
+      reason: 'latency',
+      outputLatencyMs: 55,
+      deviceLabel: null,
+    });
+
+    // iPadOS reports Macintosh UA with maxTouchPoints > 1
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+        maxTouchPoints: 5,
+        coarsePointer: true,
+        outputLatency: 0.05,
+      }),
+    ).toEqual({
+      profile: 'headphones',
+      reason: 'latency',
+      outputLatencyMs: 50,
+      deviceLabel: null,
+    });
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+        maxTouchPoints: 5,
+        coarsePointer: true,
+        outputLatency: 0.02,
+      }).profile,
+    ).toBe('phone-speaker');
+
+    // Android built-in speaker can report ~65 ms (< 100 ms threshold) -> still Phone Speaker
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9)',
+        coarsePointer: true,
+        outputLatency: 0.065,
+      }).profile,
+    ).toBe('phone-speaker');
+
+    // Bluetooth wireless latency (>= 100 ms) switches Android to Headphones profile
     expect(
       resolveAutoOutputProfile({
         userAgent: 'Mozilla/5.0 (Linux; Android 15; Pixel 9)',
@@ -1291,15 +1352,311 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
       }),
     ).toBe('headphones');
 
+    // Unmeasured outputLatency (0 or undefined) reports null ms on mobile default
+    expect(
+      resolveAutoOutputInfo({
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X)',
+        coarsePointer: true,
+        outputLatency: 0,
+      }),
+    ).toEqual({
+      profile: 'phone-speaker',
+      reason: 'mobile-default',
+      outputLatencyMs: null,
+      deviceLabel: null,
+    });
+
     // Desktop browser defaults to Headphones full-range tuning
     expect(
-      resolveAutoOutputProfile({
+      resolveAutoOutputInfo({
         userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
         coarsePointer: false,
         isMobileHint: false,
         outputLatency: 0.015,
       }),
-    ).toBe('headphones');
+    ).toEqual({
+      profile: 'headphones',
+      reason: 'desktop',
+      outputLatencyMs: 15,
+      deviceLabel: null,
+    });
+
+    // Exposed CarPlay audiooutput label selects Headphones; built-in "iPhone Stereo Speaker" does not
+    const origMediaDevices = Object.getOwnPropertyDescriptor(
+      navigator,
+      'mediaDevices',
+    );
+    try {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          enumerateDevices: vi.fn().mockResolvedValue([
+            { kind: 'audiooutput', label: 'Default - CarPlay' },
+          ]),
+        },
+        configurable: true,
+      });
+      const carPlayInfo = await detectOutputProfileInfo({
+        outputLatency: 0.055,
+      } as unknown as AudioContext);
+      expect(carPlayInfo).toEqual({
+        profile: 'headphones',
+        reason: 'device-label',
+        outputLatencyMs: 55,
+        deviceLabel: 'Default - CarPlay',
+      });
+      expect(formatAutoOutputHint(carPlayInfo)).toBe(
+        'Currently using: Headphones (CarPlay)',
+      );
+
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: {
+          enumerateDevices: vi.fn().mockResolvedValue([
+            { kind: 'audiooutput', label: 'iPhone Stereo Speaker' },
+          ]),
+        },
+        configurable: true,
+      });
+      const speakerInfo = await detectOutputProfileInfo({
+        outputLatency: 0.02,
+      } as unknown as AudioContext);
+      expect(speakerInfo.reason).not.toBe('device-label');
+    } finally {
+      if (origMediaDevices) {
+        Object.defineProperty(navigator, 'mediaDevices', origMediaDevices);
+      } else {
+        delete (navigator as unknown as Record<string, unknown>).mediaDevices;
+      }
+    }
+
+    expect(
+      formatAutoOutputHint({
+        profile: 'headphones',
+        reason: 'latency',
+        outputLatencyMs: 55,
+        deviceLabel: null,
+      }),
+    ).toBe('Currently using: Headphones (external output · 55 ms)');
+    expect(
+      formatAutoOutputHint({
+        profile: 'headphones',
+        reason: 'desktop',
+        outputLatencyMs: 15,
+        deviceLabel: null,
+      }),
+    ).toBe('Currently using: Headphones (desktop)');
+    expect(
+      formatAutoOutputHint({
+        profile: 'phone-speaker',
+        reason: 'mobile-default',
+        outputLatencyMs: 20,
+        deviceLabel: null,
+      }),
+    ).toBe('Currently using: Phone Speaker (built-in output · 20 ms)');
+    expect(
+      formatAutoOutputHint({
+        profile: 'phone-speaker',
+        reason: 'mobile-default',
+        outputLatencyMs: null,
+        deviceLabel: null,
+      }),
+    ).toBe(
+      'Currently using: Phone Speaker (mobile default · checks when audio plays)',
+    );
+  });
+
+  it('reactively updates Auto output profile on PolySynth when CarPlay latency settles or route changes and cleans up timers', async () => {
+    const makeParam = (initial = 0) => ({
+      value: initial,
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+    });
+    const createdFilters: Array<{
+      type: string;
+      frequency: ReturnType<typeof makeParam>;
+    }> = [];
+
+    let mockCtxInstance: {
+      currentTime: number;
+      sampleRate: number;
+      state: string;
+      outputLatency: number;
+      destination: Record<string, never>;
+      addEventListener: ReturnType<typeof vi.fn>;
+      removeEventListener: ReturnType<typeof vi.fn>;
+      resume: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+      createWaveShaper: ReturnType<typeof vi.fn>;
+      createGain: ReturnType<typeof vi.fn>;
+      createBiquadFilter: ReturnType<typeof vi.fn>;
+      createConvolver: ReturnType<typeof vi.fn>;
+      createDynamicsCompressor: ReturnType<typeof vi.fn>;
+      createBuffer: ReturnType<typeof vi.fn>;
+    } | null = null;
+
+    class MockReactiveAudioContext {
+      currentTime = 1.0;
+      sampleRate = 44100;
+      state = 'running';
+      outputLatency = 0.018;
+      destination = {};
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
+      resume = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+      createWaveShaper = vi.fn(() => ({
+        curve: null,
+        oversample: 'none',
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createGain = vi.fn(() => ({
+        gain: makeParam(1),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createBiquadFilter = vi.fn(() => {
+        const node = {
+          type: 'lowpass',
+          frequency: makeParam(350),
+          Q: makeParam(1),
+          gain: makeParam(0),
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+        createdFilters.push(node);
+        return node;
+      });
+      createConvolver = vi.fn(() => ({
+        buffer: null,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createDynamicsCompressor = vi.fn(() => ({
+        threshold: makeParam(-6),
+        knee: makeParam(12),
+        ratio: makeParam(3),
+        attack: makeParam(0.008),
+        release: makeParam(0.18),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }));
+      createBuffer = vi.fn((ch: number, len: number) => {
+        const channels = Array.from({ length: ch }, () => new Float32Array(len));
+        return {
+          length: len,
+          numberOfChannels: ch,
+          getChannelData: (c: number) => channels[c],
+        };
+      });
+
+      constructor() {
+        mockCtxInstance = this;
+      }
+    }
+
+    const origAudioContext = window.AudioContext;
+    const origUserAgent = Object.getOwnPropertyDescriptor(navigator, 'userAgent');
+    const origMatchMedia = window.matchMedia;
+    const origMediaDevices = Object.getOwnPropertyDescriptor(
+      navigator,
+      'mediaDevices',
+    );
+
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'AudioContext', {
+      value: MockReactiveAudioContext,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X)',
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        enumerateDevices: vi.fn().mockResolvedValue([]),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+      configurable: true,
+    });
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+    } as MediaQueryList);
+
+    try {
+      const synth = new PolySynth();
+      const emissions: Array<{ profile: string; reason: string; outputLatencyMs: number | null }> = [];
+      synth.onOutputProfileChange((info) => {
+        emissions.push({
+          profile: info.profile,
+          reason: info.reason,
+          outputLatencyMs: info.outputLatencyMs,
+        });
+      });
+
+      await synth.ensureContext();
+      expect(synth.getResolvedOutputInfo()).toEqual({
+        profile: 'phone-speaker',
+        reason: 'mobile-default',
+        outputLatencyMs: 18,
+        deviceLabel: null,
+      });
+
+      // Sub-bass HPF created after warmthFilter + reverbHpf
+      const subHpf = createdFilters.find((f) => f.type === 'highpass' && f.frequency.value === 105);
+      expect(subHpf).toBeDefined();
+
+      // Simulate WebKit pushing wired CarPlay latency (~55 ms) shortly after playback starts
+      mockCtxInstance!.outputLatency = 0.055;
+      await vi.advanceTimersByTimeAsync(250);
+
+      expect(synth.getResolvedOutputInfo()).toEqual({
+        profile: 'headphones',
+        reason: 'latency',
+        outputLatencyMs: 55,
+        deviceLabel: null,
+      });
+      expect(subHpf!.frequency.setTargetAtTime).toHaveBeenCalledWith(30, 1.0, 0.03);
+      expect(emissions.at(-1)).toEqual({
+        profile: 'headphones',
+        reason: 'latency',
+        outputLatencyMs: 55,
+      });
+
+      // Returning to built-in speaker triggers update on visibilitychange
+      mockCtxInstance!.outputLatency = 0.018;
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(synth.getResolvedOutputInfo()).toEqual({
+        profile: 'phone-speaker',
+        reason: 'mobile-default',
+        outputLatencyMs: 18,
+        deviceLabel: null,
+      });
+      expect(subHpf!.frequency.setTargetAtTime).toHaveBeenCalledWith(105, 1.0, 0.03);
+
+      synth.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      Object.defineProperty(window, 'AudioContext', {
+        value: origAudioContext,
+        configurable: true,
+        writable: true,
+      });
+      if (origUserAgent) {
+        Object.defineProperty(navigator, 'userAgent', origUserAgent);
+      }
+      window.matchMedia = origMatchMedia;
+      if (origMediaDevices) {
+        Object.defineProperty(navigator, 'mediaDevices', origMediaDevices);
+      } else {
+        delete (navigator as unknown as Record<string, unknown>).mediaDevices;
+      }
+    }
   });
 
   it('builds stereo-decorrelated early-reflection impulse responses with clean pre-delay', () => {

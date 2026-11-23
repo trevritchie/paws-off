@@ -393,6 +393,13 @@ describe('Paws Off App UI', () => {
       'Headphones',
     ]);
     expect(outputButtons[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('auto-output-hint')).toHaveTextContent(
+      'Currently using: Headphones (desktop)',
+    );
+    await user.click(within(outputGroup).getByRole('button', { name: 'Headphones' }));
+    expect(screen.queryByTestId('auto-output-hint')).not.toBeInTheDocument();
+    await user.click(within(outputGroup).getByRole('button', { name: 'Auto' }));
+    expect(screen.getByTestId('auto-output-hint')).toBeInTheDocument();
     await user.click(within(outputGroup).getByRole('button', { name: 'Headphones' }));
 
     // Switch to Minor 7b5 naming & Browser TTS

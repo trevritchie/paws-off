@@ -1,3 +1,7 @@
+import {
+  resolveAutoOutputInfo,
+  type ResolvedOutputInfo,
+} from '../audio/mastering';
 import type { ChoirVowel } from '../audio/choirSamples';
 import type { DroneEngine } from '../audio/drone';
 import { ChromaticDrone } from '../audio/drone';
@@ -84,6 +88,7 @@ export interface SessionSnapshot {
   orientationChords: ChordId[];
   wakeLockActive: boolean;
   speechAvailable: boolean;
+  resolvedOutputInfo: ResolvedOutputInfo;
 }
 
 interface VisualCue {
@@ -127,6 +132,8 @@ export class SessionController {
   private listeners = new Set<(snapshot: SessionSnapshot) => void>();
   private unsubWakeLock: (() => void) | null = null;
   private unsubSynthState: (() => void) | null = null;
+  private unsubOutputProfile: (() => void) | null = null;
+  private resolvedOutputInfo: ResolvedOutputInfo;
 
   private epoch = 0;
   private isRunning = false;
@@ -218,6 +225,21 @@ export class SessionController {
     this.rng = deps.rng ?? Math.random;
 
     this.synth.setMelodyVolume(this.settings.melodyVolume);
+    this.resolvedOutputInfo =
+      this.synth.getResolvedOutputInfo?.() ??
+      (initialSettings.outputProfile === 'auto'
+        ? resolveAutoOutputInfo()
+        : {
+            profile: initialSettings.outputProfile,
+            reason: 'manual',
+            outputLatencyMs: null,
+            deviceLabel: null,
+          });
+    this.unsubOutputProfile =
+      this.synth.onOutputProfileChange?.((info) => {
+        this.resolvedOutputInfo = info;
+        this.emit();
+      }) ?? null;
     this.synth.setOutputProfile?.(this.settings.outputProfile);
     if (this.settings.melodyEnabled) {
       void this.synth.preloadTimbre?.(this.settings.melodyTimbre);
@@ -254,7 +276,12 @@ export class SessionController {
       orientationChords: [...this.orientationChords],
       wakeLockActive: this.wakeLockActive,
       speechAvailable: this.announcer.isAvailable(),
+      resolvedOutputInfo: this.resolvedOutputInfo,
     };
+  }
+
+  refreshOutputProfile(): void {
+    this.synth.refreshOutputProfile?.();
   }
 
   subscribe(listener: (snapshot: SessionSnapshot) => void): () => void {
@@ -1317,6 +1344,7 @@ export class SessionController {
     this.stop();
     this.unsubWakeLock?.();
     this.unsubSynthState?.();
+    this.unsubOutputProfile?.();
     this.clock.dispose();
     this.announcer.dispose();
     this.drone.dispose();

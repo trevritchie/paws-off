@@ -18,6 +18,7 @@ export function App() {
     skipToAnswer,
     previewSound,
     previewMelodySound,
+    refreshOutputProfile,
   } = useEarTrainer();
 
   return (
@@ -100,11 +101,13 @@ export function App() {
 
       <AdvancedSettings
         settings={settings}
+        resolvedOutputInfo={snapshot.resolvedOutputInfo}
         voices={voices}
         onUpdate={updateSettings}
         onPreviewOutputProfile={(profile) =>
           previewSound(undefined, undefined, undefined, undefined, profile)
         }
+        onRefreshOutputProfile={refreshOutputProfile}
       />
     </main>
   );
