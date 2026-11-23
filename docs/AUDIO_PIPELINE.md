@@ -151,7 +151,7 @@ python3 scripts/process_samples.py --pack chamber-cello --src-root ../Movemental
 **Checklist when adding a new sampled instrument:**
 1. Add its anchor list and FFmpeg/LUFS configuration in `scripts/process_samples.py` and generate into `public/samples/<id>/`.
 2. Add its `id` to `AcousticSampleTimbreId` and `ACOUSTIC_PACK_CONFIGS` in `src/audio/sampleBank.ts`, bump `ACOUSTIC_SAMPLES_VERSION`, and add its metadata + `SAMPLE_PROFILES` entry in `src/audio/instruments/sampledVoices.ts`.
-3. Wire its ID into `TimbreId`, `RECOMMENDED_MELODY_TIMBRE` in `src/types/settings.ts`, `src/audio/synth.ts`, `src/audio/instruments/index.ts`, `src/components/SoundAndMix.tsx`, attribution in `README.md`, and coverage in `src/audio/__tests__/audio.test.ts`.
+3. Wire its ID into `TimbreId` in `src/types/settings.ts`, `src/audio/synth.ts`, `src/audio/instruments/index.ts`, `src/components/SoundAndMix.tsx`, attribution in `README.md`, and coverage in `src/audio/__tests__/audio.test.ts`.
 
 ---
 

@@ -112,7 +112,7 @@ Tonic drone   --> ChromaticDrone --------------------------------------+
 
 - Settings persist to `localStorage` under `paws-off:settings:v2` and pass through `sanitizeSettings` on load to clamp numeric bounds, drop unknown chord IDs, and fill newly added defaults.
 - `volumeCalibrationVersion` (`VOLUME_CALIBRATION_VERSION = 2`) handles one-time mix migrations.
-- `RECOMMENDED_MELODY_TIMBRE` / `getRecommendedMelodyTimbre` automatically pairs a contrasting melody sound whenever the user switches the chord sound, while preserving manual melody timbre overrides.
+- Switching the chord sound defaults `melodyTimbre` to match the selected chord timbre, while preserving manual melody timbre overrides.
 
 ---
 
@@ -120,5 +120,4 @@ Tonic drone   --> ChromaticDrone --------------------------------------+
 
 - **Pre-rendered `AvaNeural` MP3s + 2-clip chaining over Web Speech alone:** Eliminates mobile TTS latency/voice inconsistency and scales to all 23 chords x 5 inversion modes using 73 clips instead of hundreds of combinatorial recordings.
 - **`64k` mono MP3 samples + Web Audio stereo panning:** Keeps per-instrument bundles small (~140-260 KB) for fast mobile decoding while letting `StereoPannerNode` shape SATB width dynamically.
-- **`RECOMMENDED_MELODY_TIMBRE` in `settings.ts`:** Avoids importing `src/audio/` from `src/types/`, keeping the module dependency graph strictly acyclic.
 - **`V/IV` triad omitted:** In major keys, `V/IV` is pitch-class identical to tonic `I`, whereas `V7/IV` introduces the distinctive `b7` (`fa` -> `mi`) and is included.

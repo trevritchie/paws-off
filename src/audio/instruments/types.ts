@@ -21,11 +21,11 @@ export const TIMBRE_CATEGORY_OPTIONS: readonly {
   id: TimbreCategoryFilter;
   label: string;
 }[] = [
-  { id: 'all', label: 'All' },
   { id: 'keys', label: 'Keys' },
   { id: 'strings', label: 'Strings' },
   { id: 'winds', label: 'Winds' },
   { id: 'synths', label: 'Synths' },
+  { id: 'all', label: 'All' },
 ];
 
 export interface InstrumentPresetMeta {

@@ -9,7 +9,6 @@ import {
 import { AMBIENCE_OPTIONS } from '../audio/reverb';
 import { getScaleDegreePitchClass } from '../music/chords';
 import {
-  getRecommendedMelodyTimbre,
   type AmbienceMode,
   type DroneOctave,
   type PitchClass,
@@ -51,10 +50,34 @@ export function SoundAndMix({
   onPreviewSound,
   onPreviewMelodySound,
 }: SoundAndMixProps) {
+  const [chordSoundOpen, setChordSoundOpen] = useState(false);
   const [melodySoundOpen, setMelodySoundOpen] = useState(false);
-  const [chordCategory, setChordCategory] = useState<TimbreCategoryFilter>('all');
-  const [melodyCategory, setMelodyCategory] =
-    useState<TimbreCategoryFilter>('all');
+  const [chordCategory, setChordCategory] = useState<TimbreCategoryFilter>(
+    () => getInstrumentPreset(settings.timbre).category,
+  );
+  const [melodyCategory, setMelodyCategory] = useState<TimbreCategoryFilter>(
+    () => getInstrumentPreset(settings.melodyTimbre).category,
+  );
+
+  const handleToggleChordSound = () => {
+    setChordSoundOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setChordCategory(getInstrumentPreset(settings.timbre).category);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleMelodySound = () => {
+    setMelodySoundOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setMelodyCategory(getInstrumentPreset(settings.melodyTimbre).category);
+      }
+      return next;
+    });
+  };
 
   const filteredChordPresets = INSTRUMENT_PRESETS.filter(
     (option) => chordCategory === 'all' || option.category === chordCategory,
@@ -76,80 +99,104 @@ export function SoundAndMix({
     >
       {/* Sound preset grids */}
       <div>
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[#F3EFE6]">Chord sound</h2>
-          {!isRunning && (
-            <span className="text-xs text-[#9CA3AE]">Tap to preview</span>
-          )}
-        </div>
-        <div
-          className="mt-2 grid grid-cols-5 gap-1"
-          role="group"
-          aria-label="Chord sound category"
+        <button
+          type="button"
+          aria-expanded={chordSoundOpen}
+          aria-controls="chord-sound-grid"
+          onClick={handleToggleChordSound}
+          className="flex min-h-[40px] w-full items-center justify-between gap-2 rounded-lg text-left text-sm font-semibold text-[#F3EFE6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C]"
         >
-          {TIMBRE_CATEGORY_OPTIONS.map((cat) => {
-            const active = chordCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setChordCategory(cat.id)}
-                className={`min-h-[30px] rounded-lg border px-1 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C] ${
-                  active
-                    ? 'border-[#E5A93C] bg-[#E5A93C]/20 text-[#E5A93C]'
-                    : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
-                }`}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
-        <div
-          className="mt-2 grid grid-cols-2 gap-1.5"
-          role="group"
-          aria-label="Synth sound"
-        >
-          {filteredChordPresets.map((option) => {
-            const active = settings.timbre === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  onUpdate({
-                    timbre: option.id,
-                    melodyTimbre: getRecommendedMelodyTimbre(option.id),
-                  });
-                  onPreviewSound(
-                    option.id,
-                    settings.ambience,
-                    settings.voicePanning,
-                    settings.voicePanningMode,
-                  );
-                }}
-                className={`flex min-h-[52px] flex-col items-start justify-center rounded-xl border px-3 py-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C] ${
-                  active
-                    ? 'border-[#E5A93C] bg-[#E5A93C]/20 text-[#E5A93C]'
-                    : 'border-[#343C47] bg-[#252B33] text-[#F3EFE6] hover:border-[#495463]'
-                }`}
-              >
-                <span className="text-xs font-semibold leading-tight">
-                  {option.label}
-                </span>
-                <span
-                  className={`mt-0.5 text-[11px] leading-tight ${
-                    active ? 'text-[#E5A93C]/85' : 'text-[#9CA3AE]'
-                  }`}
-                >
-                  {option.subtitle}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+          <span>Chord sound</span>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-[#9CA3AE]">
+            <span>{getInstrumentPreset(settings.timbre).label}</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${
+                chordSoundOpen ? 'rotate-180' : ''
+              }`}
+              aria-hidden="true"
+            />
+          </span>
+        </button>
+
+        {chordSoundOpen && (
+          <div className="mt-2">
+            {!isRunning && (
+              <p className="mb-1.5 text-xs text-[#9CA3AE]">
+                Tap any preset to preview
+              </p>
+            )}
+            <div
+              className="mb-2 grid grid-cols-5 gap-1"
+              role="group"
+              aria-label="Chord sound category"
+            >
+              {TIMBRE_CATEGORY_OPTIONS.map((cat) => {
+                const active = chordCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setChordCategory(cat.id)}
+                    className={`min-h-[30px] rounded-lg border px-1 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C] ${
+                      active
+                        ? 'border-[#E5A93C] bg-[#E5A93C]/20 text-[#E5A93C]'
+                        : 'border-[#343C47] bg-[#252B33] text-[#9CA3AE] hover:text-[#F3EFE6]'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div
+              id="chord-sound-grid"
+              className="grid grid-cols-2 gap-1.5"
+              role="group"
+              aria-label="Synth sound"
+            >
+              {filteredChordPresets.map((option) => {
+                const active = settings.timbre === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      onUpdate({
+                        timbre: option.id,
+                        melodyTimbre: option.id,
+                      });
+                      setMelodyCategory(option.category);
+                      onPreviewSound(
+                        option.id,
+                        settings.ambience,
+                        settings.voicePanning,
+                        settings.voicePanningMode,
+                      );
+                    }}
+                    className={`flex min-h-[52px] flex-col items-start justify-center rounded-xl border px-3 py-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5A93C] ${
+                      active
+                        ? 'border-[#E5A93C] bg-[#E5A93C]/20 text-[#E5A93C]'
+                        : 'border-[#343C47] bg-[#252B33] text-[#F3EFE6] hover:border-[#495463]'
+                    }`}
+                  >
+                    <span className="text-xs font-semibold leading-tight">
+                      {option.label}
+                    </span>
+                    <span
+                      className={`mt-0.5 text-[11px] leading-tight ${
+                        active ? 'text-[#E5A93C]/85' : 'text-[#9CA3AE]'
+                      }`}
+                    >
+                      {option.subtitle}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Collapsible Melody sound selector grouped right below Chord sound */}
         <div className="mt-3 border-t border-[#2B323B] pt-2.5">
@@ -157,7 +204,7 @@ export function SoundAndMix({
             type="button"
             aria-expanded={melodySoundOpen}
             aria-controls="melody-sound-grid"
-            onClick={() => setMelodySoundOpen((prev) => !prev)}
+            onClick={handleToggleMelodySound}
             className="flex min-h-[40px] w-full items-center justify-between gap-2 rounded-lg text-left text-sm font-semibold text-[#F3EFE6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4FB3A4]"
           >
             <span>Melody sound</span>
@@ -182,7 +229,7 @@ export function SoundAndMix({
               ) : (
                 !isRunning && (
                   <p className="mb-1.5 text-xs text-[#9CA3AE]">
-                    Auto-matched to chord sound · tap any preset to override
+                    Matches chord sound by default · tap any preset to override
                   </p>
                 )
               )}

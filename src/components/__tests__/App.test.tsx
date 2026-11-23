@@ -9,7 +9,8 @@ describe('Paws Off App UI', () => {
     window.localStorage.clear();
   });
 
-  it('renders primary controls (Key, Sound, Space, Mix, Drone switch) outside collapsed Advanced Settings', () => {
+  it('renders primary controls (Key, Sound, Space, Mix, Drone switch) outside collapsed Advanced Settings', async () => {
+    const user = userEvent.setup();
     const { container } = render(<App />);
 
     expect(screen.getByText('Paws Off')).toBeInTheDocument();
@@ -69,14 +70,52 @@ describe('Paws Off App UI', () => {
     expect(keyModeButtons[1]).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByLabelText(/rotate key every/i)).toBeInTheDocument();
 
-    // Sound, Space, Chords volume, Voice volume, and Drone switch visible outside Advanced
+    // Both Chord sound and Melody sound start folded on Grand Piano default
+    const chordToggle = screen.getByRole('button', { name: /chord sound/i });
+    expect(chordToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(chordToggle).getByText('Grand Piano')).toBeInTheDocument();
+    const melodyToggleBtn = screen.getByRole('button', {
+      name: /melody sound/i,
+    });
+    expect(melodyToggleBtn).toHaveAttribute('aria-expanded', 'false');
+    expect(within(melodyToggleBtn).getByText('Grand Piano')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: /synth sound/i }),
+    ).not.toBeInTheDocument();
+
+    // Opening Chord sound lands on the selected instrument's category (Keys), never All
+    await user.click(chordToggle);
+    expect(chordToggle).toHaveAttribute('aria-expanded', 'true');
+    const chordCatGroup = screen.getByRole('group', {
+      name: /chord sound category/i,
+    });
+    expect(
+      within(chordCatGroup).getByRole('button', { name: 'Keys' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(chordCatGroup).getByRole('button', { name: 'All' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+
+    const keysGrid = screen.getByRole('group', { name: /synth sound/i });
+    const keyButtons = within(keysGrid).getAllByRole('button');
+    expect(keyButtons[0].textContent).toMatch(/grand piano/i);
+    expect(keyButtons[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(keysGrid).getByRole('button', { name: /felt piano/i }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      within(keysGrid).queryByRole('button', { name: /velvet pad/i }),
+    ).not.toBeInTheDocument();
+
+    // Switching to All reveals all 30 presets cleanly
+    await user.click(within(chordCatGroup).getByRole('button', { name: 'All' }));
     const soundGroup = screen.getByRole('group', { name: /synth sound/i });
     const soundButtons = within(soundGroup).getAllByRole('button');
-    expect(soundButtons[0].textContent).toMatch(/velvet pad/i);
+    expect(soundButtons[0].textContent).toMatch(/grand piano/i);
     expect(soundButtons[0]).toHaveAttribute('aria-pressed', 'true');
     expect(
-      within(soundGroup).getByRole('button', { name: /felt piano/i }),
-    ).toHaveAttribute('aria-pressed', 'false');
+      within(soundGroup).getByRole('button', { name: /velvet pad/i }),
+    ).toBeInTheDocument();
     expect(
       within(soundGroup).getByRole('button', { name: /warm rhodes/i }),
     ).toBeInTheDocument();
@@ -213,9 +252,6 @@ describe('Paws Off App UI', () => {
         name: /shimmer pad.*airy celestial glass/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /melody sound/i }),
-    ).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.queryByRole('button', { name: /electric piano/i }),
     ).not.toBeInTheDocument();
@@ -366,7 +402,8 @@ describe('Paws Off App UI', () => {
     // Switch back to Auto-rotate
     await user.click(screen.getByRole('button', { name: /auto-rotate/i }));
 
-    // Primary Sound & Mix interactions (no need to expand Advanced!)
+    // Primary Sound & Mix interactions (Chord sound opens on active Keys tab; pick Warm Rhodes)
+    await user.click(screen.getByRole('button', { name: /chord sound/i }));
     await user.click(screen.getByRole('button', { name: /warm rhodes/i }));
     await user.click(screen.getByRole('button', { name: /lush hall/i }));
     await user.click(screen.getByRole('button', { name: /^random$/i }));
@@ -659,7 +696,7 @@ describe('Paws Off App UI', () => {
     expect(afterSolfege.inversionNotation).toBe('solfege');
   });
 
-  it('supports Melody over chords, Allow tensions, Melody volume, and auto-paired Melody sound with manual override', async () => {
+  it('supports Melody over chords, Allow tensions, Melody volume, and matching Melody sound with manual override', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -678,7 +715,10 @@ describe('Paws Off App UI', () => {
       screen.queryByRole('switch', { name: /allow tensions/i }),
     ).not.toBeInTheDocument();
 
-    // Switching chord sound to Warm Rhodes auto-selects Clean Guitar as paired melody sound
+    // Opening Chord sound starts on Keys; switching chord sound to Warm Rhodes matches melody sound to Warm Rhodes
+    await user.click(
+      within(soundAndMixRegion).getByRole('button', { name: /chord sound/i }),
+    );
     const chordSoundGroup = screen.getByRole('group', { name: /synth sound/i });
     await user.click(
       within(chordSoundGroup).getByRole('button', { name: /warm rhodes/i }),
@@ -694,7 +734,7 @@ describe('Paws Off App UI', () => {
       within(allowedChordsRegion).getByLabelText(/melody volume/i),
     ).toBeInTheDocument();
 
-    // Melody sound drawer lives under Sound and mix (not Allowed chords)
+    // Melody sound drawer lives under Sound and mix (not Allowed chords) and matches Warm Rhodes
     expect(
       within(allowedChordsRegion).queryByRole('button', { name: /melody sound/i }),
     ).not.toBeInTheDocument();
@@ -702,12 +742,27 @@ describe('Paws Off App UI', () => {
       name: /melody sound/i,
     });
     expect(melodySoundBtn).toHaveAttribute('aria-expanded', 'false');
-    expect(within(melodySoundBtn).getByText('Clean Guitar')).toBeInTheDocument();
+    expect(within(melodySoundBtn).getByText('Warm Rhodes')).toBeInTheDocument();
 
+    // Opening Melody sound lands on the selected instrument's category (Keys)
     await user.click(melodySoundBtn);
     expect(melodySoundBtn).toHaveAttribute('aria-expanded', 'true');
+    const melodyCategoryGroup = screen.getByRole('group', {
+      name: /melody sound category/i,
+    });
+    expect(
+      within(melodyCategoryGroup).getByRole('button', { name: 'Keys' }),
+    ).toHaveAttribute('aria-pressed', 'true');
 
     const melodyGrid = document.getElementById('melody-sound-grid')!;
+    expect(
+      within(melodyGrid).getByRole('button', { name: /warm rhodes/i }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Manual override to Concert Harp under Strings
+    await user.click(
+      within(melodyCategoryGroup).getByRole('button', { name: 'Strings' }),
+    );
     await user.click(
       within(melodyGrid).getByRole('button', { name: /concert harp/i }),
     );
@@ -725,22 +780,52 @@ describe('Paws Off App UI', () => {
     expect(saved.timbre).toBe('warm-rhodes');
     expect(saved.melodyTimbre).toBe('concert-harp');
 
-    // Switching chord sound afterwards auto-pairs again cleanly (Soft Vibes -> Warm Rhodes)
+    // Switching chord sound afterwards resets melody sound to match (Soft Vibes -> Soft Vibes)
+    const chordCategoryGroup = screen.getByRole('group', {
+      name: /chord sound category/i,
+    });
+    await user.click(
+      within(chordCategoryGroup).getByRole('button', { name: 'Synths' }),
+    );
     await user.click(
       within(chordSoundGroup).getByRole('button', { name: /soft vibes/i }),
     );
-    expect(within(melodySoundBtn).getByText('Warm Rhodes')).toBeInTheDocument();
+    expect(within(melodySoundBtn).getByText('Soft Vibes')).toBeInTheDocument();
+
+    // Closing and reopening Melody sound starts on Synths (not All and not stale Strings)
+    await user.click(melodySoundBtn);
+    expect(melodySoundBtn).toHaveAttribute('aria-expanded', 'false');
+    await user.click(melodySoundBtn);
+    const reopenedMelodyCat = screen.getByRole('group', {
+      name: /melody sound category/i,
+    });
+    expect(
+      within(reopenedMelodyCat).getByRole('button', { name: 'Synths' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('filters Chord sound and Melody sound presets by category tabs', async () => {
+  it('filters Chord sound and Melody sound presets by category tabs and opens on the active instrument category', async () => {
     const user = userEvent.setup();
     render(<App />);
+
+    // Opening Chord sound starts on Keys (active category for Grand Piano), never All
+    const chordToggle = screen.getByRole('button', { name: /chord sound/i });
+    await user.click(chordToggle);
 
     const chordCategoryGroup = screen.getByRole('group', {
       name: /chord sound category/i,
     });
+    expect(
+      within(chordCategoryGroup).getByRole('button', { name: 'Keys' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     const chordGrid = screen.getByRole('group', { name: /synth sound/i });
-    expect(within(chordGrid).getAllByRole('button')).toHaveLength(30);
+    expect(within(chordGrid).getAllByRole('button')).toHaveLength(9);
+    expect(
+      within(chordGrid).getByRole('button', { name: /grand piano/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(chordGrid).queryByRole('button', { name: /woodwind choir/i }),
+    ).not.toBeInTheDocument();
 
     await user.click(
       within(chordCategoryGroup).getByRole('button', { name: 'Winds' }),
@@ -758,12 +843,38 @@ describe('Paws Off App UI', () => {
     );
     expect(within(chordGrid).getAllByRole('button')).toHaveLength(30);
 
-    // Melody sound category tabs inside collapsed drawer
+    // Selecting Woodwind Choir, closing, and reopening opens directly on Winds
+    await user.click(
+      within(chordGrid).getByRole('button', { name: /woodwind choir/i }),
+    );
+    await user.click(chordToggle);
+    await user.click(chordToggle);
+    const reopenedChordCategoryGroup = screen.getByRole('group', {
+      name: /chord sound category/i,
+    });
+    expect(
+      within(reopenedChordCategoryGroup).getByRole('button', { name: 'Winds' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(screen.getByRole('group', { name: /synth sound/i })).getAllByRole(
+        'button',
+      ),
+    ).toHaveLength(5);
+
+    // Melody sound starts on Winds (followed chord sound change)
     await user.click(screen.getByRole('button', { name: /melody sound/i }));
     const melodyCategoryGroup = screen.getByRole('group', {
       name: /melody sound category/i,
     });
+    expect(
+      within(melodyCategoryGroup).getByRole('button', { name: 'Winds' }),
+    ).toHaveAttribute('aria-pressed', 'true');
     const melodyGrid = document.getElementById('melody-sound-grid')!;
+    expect(within(melodyGrid).getAllByRole('button')).toHaveLength(5);
+
+    await user.click(
+      within(melodyCategoryGroup).getByRole('button', { name: 'All' }),
+    );
     expect(within(melodyGrid).getAllByRole('button')).toHaveLength(30);
 
     await user.click(

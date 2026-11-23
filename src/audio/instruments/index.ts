@@ -55,8 +55,8 @@ import { buildWarmRhodesVoice, WARM_RHODES_META } from './warmRhodes';
 import { buildWurlitzerVoice, WURLITZER_META } from './wurlitzer';
 
 export const INSTRUMENT_PRESETS: readonly InstrumentPresetMeta[] = [
-  VELVET_PAD_META,
   GRAND_PIANO_META,
+  VELVET_PAD_META,
   WARM_STRINGS_META,
   CHAMBER_CELLO_META,
   SATB_CHOIR_META,
@@ -158,13 +158,13 @@ export function isSampledTimbre(id: TimbreId): boolean {
 }
 
 export function getInstrumentPreset(id: TimbreId): InstrumentPresetMeta {
-  return META_BY_ID[id] ?? VELVET_PAD_META;
+  return META_BY_ID[id] ?? GRAND_PIANO_META;
 }
 
 export function buildInstrumentVoice(
   id: TimbreId,
   params: VoiceBuildParams,
 ): BuiltVoiceNodes {
-  const builder = BUILDER_BY_ID[id] ?? buildVelvetPadVoice;
+  const builder = BUILDER_BY_ID[id] ?? buildGrandPianoVoice;
   return builder(params);
 }

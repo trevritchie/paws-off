@@ -181,43 +181,6 @@ export const LEGACY_SETTINGS_STORAGE_KEY = 'paws-off:settings:v1';
 export const SETTINGS_STORAGE_KEY = 'paws-off:settings:v2';
 export const VOLUME_CALIBRATION_VERSION = 2;
 
-export const RECOMMENDED_MELODY_TIMBRE: Record<TimbreId, TimbreId> = {
-  'velvet-pad': 'soft-vibes',
-  'grand-piano': 'warm-strings',
-  'warm-strings': 'concert-harp',
-  'chamber-cello': 'concert-harp',
-  'satb-choir': 'concert-harp',
-  'french-horn': 'warm-strings',
-  'concert-harp': 'warm-strings',
-  'nylon-guitar': 'warm-strings',
-  'clean-guitar': 'soft-vibes',
-  harmonium: 'nylon-guitar',
-  'pipe-organ': 'french-horn',
-  'felt-piano': 'soft-vibes',
-  'warm-rhodes': 'clean-guitar',
-  'soft-vibes': 'warm-rhodes',
-  wurlitzer: 'clean-guitar',
-  'juno-poly': 'glass-celesta',
-  'jazz-organ': 'warm-rhodes',
-  'glass-celesta': 'warm-strings',
-  marimba: 'woodwind-choir',
-  'woodwind-choir': 'concert-harp',
-  'steel-guitar': 'warm-sax',
-  'pizzicato-strings': 'woodwind-choir',
-  'warm-sax': 'warm-rhodes',
-  'warm-trombone': 'warm-sax',
-  'lofi-tape': 'kalimba',
-  harpsichord: 'woodwind-choir',
-  kalimba: 'lofi-tape',
-  'analog-brass': 'glass-celesta',
-  'retro-8bit': 'glass-celesta',
-  'shimmer-pad': 'kalimba',
-};
-
-export function getRecommendedMelodyTimbre(chordTimbre: TimbreId): TimbreId {
-  return RECOMMENDED_MELODY_TIMBRE[chordTimbre] ?? 'soft-vibes';
-}
-
 export const DEFAULT_SETTINGS: SessionSettings = {
   allowedChords: ['I', 'IV', 'V', 'vi'],
   secondaryDominantsEnabled: false,
@@ -231,13 +194,13 @@ export const DEFAULT_SETTINGS: SessionSettings = {
   melodyEnabled: false,
   melodyAllowTensions: false,
   melodyVolume: 0.75,
-  melodyTimbre: 'soft-vibes',
+  melodyTimbre: 'grand-piano',
   bpm: 120,
   progressionLength: 4,
   questionRepeats: 2,
   playChordsBehindAnswer: true,
   playFinalReplayAfterAnswer: true,
-  timbre: 'velvet-pad',
+  timbre: 'grand-piano',
   outputProfile: 'auto',
   ambience: 'warm-room',
   voicePanning: true,
@@ -428,7 +391,7 @@ export function sanitizeSettings(raw: unknown): SessionSettings {
     typeof obj.melodyTimbre === 'string' &&
     (validTimbres as readonly string[]).includes(obj.melodyTimbre)
       ? (obj.melodyTimbre as TimbreId)
-      : getRecommendedMelodyTimbre(timbre);
+      : timbre;
 
   const outputProfile: AudioOutputProfile =
     obj.outputProfile === 'auto' ||

@@ -10,7 +10,6 @@ import {
 } from '../../music/chords';
 import {
   type AudioOutputProfile,
-  getRecommendedMelodyTimbre,
   type InversionNotation,
   LEGACY_SETTINGS_STORAGE_KEY,
   loadSettings,
@@ -485,12 +484,12 @@ describe('perceptual volume calibration', () => {
 });
 
 describe('meditative instruments & ambience', () => {
-  it('exposes all 30 instrument presets (Velvet Pad default, 16 real-sample acoustics, and 14 pure Web Audio synths)', () => {
+  it('exposes all 30 instrument presets (Grand Piano default, 16 real-sample acoustics, and 14 pure Web Audio synths)', () => {
     expect(INSTRUMENT_PRESETS).toHaveLength(30);
     const ids = INSTRUMENT_PRESETS.map((p) => p.id);
     expect(ids).toEqual([
-      'velvet-pad',
       'grand-piano',
+      'velvet-pad',
       'warm-strings',
       'chamber-cello',
       'satb-choir',
@@ -654,9 +653,10 @@ describe('meditative instruments & ambience', () => {
     }
   });
 
-  it('defaults fresh settings to velvet-pad + warm-room, 80% mix, final replay ON, length 4 (max 8), and force-resets legacy v1 storage', () => {
+  it('defaults fresh settings to grand-piano + warm-room, 80% mix, final replay ON, length 4 (max 8), and force-resets legacy v1 storage', () => {
     const fresh = sanitizeSettings(null);
-    expect(fresh.timbre).toBe('velvet-pad');
+    expect(fresh.timbre).toBe('grand-piano');
+    expect(fresh.melodyTimbre).toBe('grand-piano');
     expect(fresh.ambience).toBe('warm-room');
     expect(fresh.voicePanning).toBe(true);
     expect(fresh.voicePanningMode).toBe('satb');
@@ -675,7 +675,7 @@ describe('meditative instruments & ambience', () => {
       JSON.stringify({ timbre: 'felt-piano', chordVolume: 0.5, bpm: 90 }),
     );
     const migrated = loadSettings();
-    expect(migrated.timbre).toBe('velvet-pad');
+    expect(migrated.timbre).toBe('grand-piano');
     expect(migrated.chordVolume).toBe(0.8);
     expect(migrated.bpm).toBe(120);
     expect(window.localStorage.getItem(LEGACY_SETTINGS_STORAGE_KEY)).toBeNull();
@@ -696,11 +696,11 @@ describe('meditative instruments & ambience', () => {
     expect(sanitizeSettings({ progressionLength: 1 }).progressionLength).toBe(2);
     expect(sanitizeSettings({ progressionLength: 12 }).progressionLength).toBe(8);
 
-    // Removed legacy classic timbres fall back cleanly to velvet-pad default
+    // Removed legacy classic timbres fall back cleanly to grand-piano default
     expect(sanitizeSettings({ timbre: 'electric-piano' }).timbre).toBe(
-      'velvet-pad',
+      'grand-piano',
     );
-    expect(sanitizeSettings({ timbre: 'soft-pad' }).timbre).toBe('velvet-pad');
+    expect(sanitizeSettings({ timbre: 'soft-pad' }).timbre).toBe('grand-piano');
     expect(sanitizeSettings({ ambience: 'lush-hall' }).ambience).toBe(
       'lush-hall',
     );
@@ -894,12 +894,11 @@ describe('meditative instruments & ambience', () => {
     expect(fresh.melodyEnabled).toBe(false);
     expect(fresh.melodyAllowTensions).toBe(false);
     expect(fresh.melodyVolume).toBe(0.75);
-    expect(fresh.melodyTimbre).toBe('soft-vibes');
+    expect(fresh.melodyTimbre).toBe('grand-piano');
 
-    // Missing melodyTimbre auto-pairs cleanly from sanitized chord timbre
+    // Missing melodyTimbre matches sanitized chord timbre by default
     const paired = sanitizeSettings({ timbre: 'warm-rhodes' });
-    expect(paired.melodyTimbre).toBe(getRecommendedMelodyTimbre('warm-rhodes'));
-    expect(paired.melodyTimbre).toBe('clean-guitar');
+    expect(paired.melodyTimbre).toBe('warm-rhodes');
 
     const custom = sanitizeSettings({
       timbre: 'grand-piano',
@@ -1722,7 +1721,7 @@ describe('mastering chain, studio reverb & expanded wavetable synths', () => {
       'shimmer-pad',
     ] as const) {
       expect(sanitizeSettings({ timbre: id }).timbre).toBe(id);
-      expect(getRecommendedMelodyTimbre(id)).toBeDefined();
+      expect(sanitizeSettings({ timbre: id }).melodyTimbre).toBe(id);
     }
 
     const makeParam = (initial = 0) => ({
